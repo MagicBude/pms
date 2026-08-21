@@ -1,0 +1,56 @@
+# Local legacy system and private reference material.
+/.internal/*
+!/.internal/README.md
+
+# Local environment and secrets.
+.env
+.env.*
+!.env.example
+*.local
+
+# Python generated files.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# JavaScript and frontend generated files.
+node_modules/
+.pnpm-store/
+coverage/
+.vite/
+.next/
+
+# IDE and operating-system files.
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime data and logs.
+data/
+uploads/
+backups/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Test and temporary output.
+.tmp/
+tmp/
+temp/
+artifacts/
+
