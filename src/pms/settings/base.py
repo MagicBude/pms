@@ -23,6 +23,8 @@ INSTALLED_APPS = [
     "pms.authorization.apps.AuthorizationConfig",
     "pms.audit.apps.AuditConfig",
     "pms.attachments.apps.AttachmentsConfig",
+    "pms.master_data.apps.MasterDataConfig",
+    "pms.projects.apps.ProjectsConfig",
 ]
 MIDDLEWARE = [
     "pms.platform.middleware.RequestContextMiddleware",
