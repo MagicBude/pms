@@ -82,6 +82,18 @@ def create_second_context(*, role: RoleCode, suffix: str) -> TenantContext:
     )
 
 
+def create_member_context(*, tenant: Tenant, role: RoleCode, suffix: str) -> TenantContext:
+    """在既有租户建立指定角色成员，用于验证真实应用授权。"""
+    user = get_user_model().objects.create_user(username=f"member-{suffix}")
+    membership = Membership.objects.create(tenant=tenant, user=user)
+    MembershipRole.objects.create(membership=membership, role=Role.objects.get(code=role))
+    return TenantContext(
+        tenant_id=TenantId(tenant.id),
+        user_id=UserId(user.id),
+        membership_id=MembershipId(membership.id),
+    )
+
+
 @pytest.mark.django_db
 @pytest.mark.acceptance
 def test_admin_creates_tenant_scoped_master_data_with_audit(
@@ -141,7 +153,39 @@ def test_master_data_uniqueness_and_foreign_keys_are_tenant_scoped(
         service.create_customer(context=context_a, code="cus-001", name="另一个客户")
 
     unit_a = service.create_unit(context=context_a, code="PCS", name="件")
+    category_a = service.create_category(context=context_a, code="STD", name="标准件")
+    service.create_material(
+        context=context_a,
+        command=CreateMaterialCommand(
+            code="MAT-SHARED",
+            name="租户 A 物料",
+            unit_id=unit_a.id,
+            category_id=category_a.id,
+        ),
+    )
+    with pytest.raises(DuplicateMasterDataError):
+        service.create_material(
+            context=context_a,
+            command=CreateMaterialCommand(
+                code="mat-shared",
+                name="租户 A 重复物料",
+                unit_id=unit_a.id,
+                category_id=category_a.id,
+            ),
+        )
+
+    unit_b = service.create_unit(context=context_b, code="PCS", name="件")
     category_b = service.create_category(context=context_b, code="STD", name="标准件")
+    service.create_material(
+        context=context_b,
+        command=CreateMaterialCommand(
+            code="MAT-SHARED",
+            name="租户 B 独立物料",
+            unit_id=unit_b.id,
+            category_id=category_b.id,
+        ),
+    )
+    assert Material.objects.filter(code="MAT-SHARED").count() == 2
     with pytest.raises(ValueError, match="单位或分类不可用"):
         service.create_material(
             context=context_a,
@@ -153,6 +197,59 @@ def test_master_data_uniqueness_and_foreign_keys_are_tenant_scoped(
             ),
         )
     assert not Material.objects.filter(code="MAT-X").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.acceptance
+def test_project_manager_and_bom_engineer_can_manage_their_master_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AC-S001-037/044/045：规定角色成功，申请人员不能越权维护主数据。"""
+    admin = initialize_admin_context(monkeypatch)
+    tenant = Tenant.objects.get(id=admin.tenant_id)
+    manager = create_member_context(
+        tenant=tenant, role=RoleCode.PROJECT_MANAGER, suffix="master-manager"
+    )
+    engineer = create_member_context(
+        tenant=tenant, role=RoleCode.BOM_ENGINEER, suffix="master-engineer"
+    )
+    requester = create_member_context(
+        tenant=tenant, role=RoleCode.REQUESTER, suffix="master-requester"
+    )
+    service = master_data_service()
+
+    customer = service.create_customer(context=manager, code="CUS-MANAGER", name="负责人客户")
+    unit = service.create_unit(context=engineer, code="SET", name="套")
+    category = service.create_category(context=engineer, code="CUSTOM", name="定制件")
+    material = service.create_material(
+        context=engineer,
+        command=CreateMaterialCommand(
+            code="MAT-ENGINEER",
+            name="工程物料",
+            specification="教学规格",
+            brand="教学品牌",
+            unit_id=unit.id,
+            category_id=category.id,
+            procurement_required=True,
+        ),
+    )
+    assert customer.id
+    assert Material.objects.get(id=material.id).procurement_required is True
+
+    with pytest.raises(PermissionDeniedError):
+        service.create_customer(context=requester, code="CUS-NOPE", name="越权客户")
+    with pytest.raises(PermissionDeniedError):
+        service.create_material(
+            context=requester,
+            command=CreateMaterialCommand(
+                code="MAT-NOPE",
+                name="越权物料",
+                unit_id=unit.id,
+                category_id=category.id,
+            ),
+        )
+    assert not Customer.objects.filter(code="CUS-NOPE").exists()
+    assert not Material.objects.filter(code="MAT-NOPE").exists()
 
 
 @pytest.mark.django_db
