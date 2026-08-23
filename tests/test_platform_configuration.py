@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -86,6 +87,34 @@ assert local.CSRF_COOKIE_SECURE is False
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_local_creates_missing_data_directory_before_sqlite_connects(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            data_directory = Path(temporary_root) / "nested" / "data"
+            environment = {
+                "DJANGO_SETTINGS_MODULE": "pms.settings.local",
+                "PMS_DATA_DIR": str(data_directory),
+            }
+            assertions = """
+from pathlib import Path
+import django
+django.setup()
+from django.db import connection
+with connection.cursor() as cursor:
+    cursor.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    assert cursor.fetchall() == []
+assert Path(connection.settings_dict["NAME"]).parent.is_dir()
+"""
+            result = subprocess.run(
+                [sys.executable, "-c", assertions],
+                cwd=self.project_root,
+                env={**os.environ, **environment},
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_lan_rejects_missing_required_configuration(self) -> None:
         result = self.import_profile("lan", {})

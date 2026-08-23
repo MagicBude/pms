@@ -14,7 +14,11 @@ os.environ.setdefault(
 )
 
 from pms.settings.base import *
-from pms.settings.environment import ConfigurationError, read_bool
+from pms.settings.environment import (
+    ConfigurationError,
+    ensure_private_directory,
+    read_bool,
+)
 
 DEPLOYMENT_PROFILE = "local"
 DEBUG = read_bool("PMS_DEBUG", default=False)
@@ -29,7 +33,9 @@ except ValueError as error:
     ) from error
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
-DATA_DIR = Path(os.environ.get("PMS_DATA_DIR", BASE_DIR / "data")).resolve()
+DATA_DIR = ensure_private_directory(
+    Path(os.environ.get("PMS_DATA_DIR", BASE_DIR / "data")).resolve()
+)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",

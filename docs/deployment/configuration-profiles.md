@@ -32,6 +32,8 @@ PMS 使用同一套业务代码，通过 `local`、`lan`、`cloud` 和 `test` �
 | `PMS_DEBUG` | local 可选 | 默认关闭，仅接受明确布尔值 |
 | `PMS_DATA_DIR` | local 可选 | 默认仓库下被忽略的 `data/`；交付版应使用应用私有目录 |
 
+`local` 在启动时创建缺失的数据目录。Django 的启动迁移检查可能同时创建空 SQLite 文件；在 F-004 首批迁移以前，该文件不包含用户表或业务表。
+
 ## 4. 安全差异
 
 - `base` 默认关闭 `DEBUG`，启用安全、CSRF、Host 和防点击劫持中间件。

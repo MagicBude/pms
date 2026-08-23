@@ -6,6 +6,7 @@
 
 import os
 from collections.abc import Mapping
+from pathlib import Path
 
 
 class ConfigurationError(ValueError):
@@ -45,3 +46,20 @@ def read_csv(
     if required and not values:
         raise ConfigurationError(f"{name} 至少需要一个值。")
     return values
+
+
+def ensure_private_directory(path: Path) -> Path:
+    """确保应用私有目录存在，并把系统错误转换成稳定配置错误。
+
+    SQLite 可以创建数据库文件，却不会替它创建父目录。本机档案必须在
+    Django 启动迁移检查以前完成这个最小初始化，否则干净环境第一次
+    启动会得到难以理解的 ``unable to open database file``。
+    """
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        # 错误中不回显绝对路径，避免服务器日志泄露本机目录结构。
+        raise ConfigurationError("无法创建或访问 PMS 应用数据目录。") from error
+    if not path.is_dir():
+        raise ConfigurationError("PMS 应用数据目录配置指向的不是目录。")
+    return path

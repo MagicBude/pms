@@ -44,7 +44,7 @@ uv sync --locked --all-groups
 uv run python manage.py runserver 127.0.0.1:8000
 ```
 
-浏览器访问 `http://127.0.0.1:8000/`，应看到“PMS 工程基础已启动”的文本提示。开发服务器只用于开发；本机交付将使用 Uvicorn 和后续启动器。
+浏览器访问 `http://127.0.0.1:8000/`，应看到“PMS 工程基础已启动”的文本提示。首次启动会自动创建被 Git 忽略的本机数据目录和空 SQLite 文件，但 F-004 前不会创建任何用户表或业务表。开发服务器只用于开发；本机交付将使用 Uvicorn 和后续启动器。
 
 验证 ASGI 正式入口可执行：
 
@@ -75,7 +75,7 @@ uv run python manage.py makemigrations --check --dry-run
 - 第二次同步没有依赖漂移；
 - `dist/` 中可以生成源码包和 wheel，且构建产物不进入 Git。
 - Django system checks 和 F-002 配置测试通过；
-- 迁移检查显示 `No changes detected`，启动过程不创建数据库文件。
+- 迁移检查显示 `No changes detected`，启动过程不创建用户表或业务表。
 
 本批次尚未配置 Ruff、mypy、pytest 或 CI 命令。它们已经锁入依赖，但只有 F-003 配置完成并实际运行后才能报告检查通过。
 
