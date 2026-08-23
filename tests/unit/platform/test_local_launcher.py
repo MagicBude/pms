@@ -99,6 +99,21 @@ def test_port_check_reports_an_existing_loopback_listener() -> None:
 
 
 @pytest.mark.unit
+def test_port_check_allows_safe_reuse_before_binding() -> None:
+    probe = patch("pms.platform.local_launcher.socket.socket")
+    with probe as socket_factory:
+        ensure_port_available("127.0.0.1", 8000)
+
+    socket_instance = socket_factory.return_value.__enter__.return_value
+    assert socket_instance.method_calls[0] == (
+        "setsockopt",
+        (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
+        {},
+    )
+    socket_instance.bind.assert_called_once_with(("127.0.0.1", 8000))
+
+
+@pytest.mark.unit
 def test_launcher_opens_browser_once_only_after_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

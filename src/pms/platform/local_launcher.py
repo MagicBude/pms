@@ -293,6 +293,10 @@ def ensure_port_available(host: str, port: int) -> None:
     family = socket.AF_INET6 if address.version == 6 else socket.AF_INET
     try:
         with socket.socket(family, socket.SOCK_STREAM) as probe:
+            # Linux 会为刚关闭且处理过连接的监听端口保留 TIME_WAIT。Uvicorn
+            # 的 asyncio 监听器允许安全复用这种本地地址；预检必须采用相同
+            # 语义，否则备份恢复烟雾测试紧接着重启时会产生假“端口占用”。
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             probe.bind((host, port))
     except OSError as error:
         raise LocalPortUnavailableError(
