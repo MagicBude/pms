@@ -32,3 +32,6 @@ F-002 已建立[部署配置档案](configuration-profiles.md)，说明当前可
 
 F-007 已建立并验证[健康检查、运行日志与错误响应](observability.md)基线，说明探针、
 request ID、JSON 日志和稳定错误码。
+
+F-008 已建立[附件元数据与本地存储](attachment-storage.md)候选基线，说明随机存储键、
+原子写入、失败补偿和一致性对账。

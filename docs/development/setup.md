@@ -44,7 +44,9 @@ uv sync --locked --all-groups
 uv run python manage.py runserver 127.0.0.1:8000
 ```
 
-浏览器访问 `http://127.0.0.1:8000/`，应看到“PMS 工程基础已启动”的文本提示。首次启动会自动创建被 Git 忽略的本机数据目录和空 SQLite 文件，但 F-004 前不会创建任何用户表或业务表。开发服务器只用于开发；本机交付将使用 Uvicorn 和后续启动器。
+浏览器访问 `http://127.0.0.1:8000/`，应看到“PMS 工程基础已启动”的文本提示。首次启动
+会自动创建被 Git 忽略的本机数据目录、`attachments/` 私有子目录和 SQLite 文件。开发
+服务器只用于开发；本机交付将使用 Uvicorn 和后续启动器。
 
 验证 ASGI 正式入口可执行：
 
@@ -106,7 +108,7 @@ uv run python manage.py migrate --noinput
 ```
 
 当前迁移会建立 Django 权限、内容类型、会话，以及 PMS 自有 identity、tenancy、
-authorization 和 audit 表，不会创建默认 `auth_user`。F-009 以前只建立结构，不自动写入
+authorization、audit 和 attachments 表，不会创建默认 `auth_user`。F-009 以前只建立结构，不自动写入
 默认租户、管理员或角色权限数据。重复执行应显示 `No migrations to apply`。不要手工修改
 SQLite 结构；模型变化必须生成、审查并提交迁移。
 

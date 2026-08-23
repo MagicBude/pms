@@ -108,6 +108,7 @@ assert set(local.ALLOWED_HOSTS) == {"127.0.0.1", "localhost", "[::1]"}
 assert local.SESSION_COOKIE_SECURE is False
 assert local.CSRF_COOKIE_SECURE is False
 assert local.LOGGING["loggers"]["pms"]["level"] == "INFO"
+assert local.ATTACHMENT_STORAGE_ROOT.is_dir()
 """
         result = subprocess.run(
             [sys.executable, "-c", assertions],

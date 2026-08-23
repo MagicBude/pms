@@ -354,6 +354,8 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-008：建立附件端口和本地存储适配器
 
+实施状态：本地候选完成（2026-08-23，等待 PostgreSQL 18 CI）
+
 建议提交：`feat(attachments): 建立附件端口与本地存储适配器`
 
 主要内容：

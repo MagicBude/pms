@@ -1,7 +1,10 @@
 """数据库连接与迁移状态组成的就绪检查。"""
 
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
+from django.conf import settings
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
@@ -38,7 +41,25 @@ def check_readiness() -> ReadinessReport:
             ready=False,
             checks={"database": "ok", "migrations": "pending"},
         )
+    checks = {"database": "ok", "migrations": "ok"}
+    attachment_storage_root = getattr(settings, "ATTACHMENT_STORAGE_ROOT", None)
+    if attachment_storage_root is not None:
+        if not _directory_is_writable(Path(attachment_storage_root)):
+            checks["attachment_storage"] = "unavailable"
+            return ReadinessReport(ready=False, checks=checks)
+        checks["attachment_storage"] = "ok"
     return ReadinessReport(
         ready=True,
-        checks={"database": "ok", "migrations": "ok"},
+        checks=checks,
     )
+
+
+def _directory_is_writable(root: Path) -> bool:
+    """用同目录临时文件验证真实写入和清理能力，不暴露绝对路径。"""
+    try:
+        with NamedTemporaryFile(prefix=".pms-health-", dir=root) as probe:
+            probe.write(b"ready")
+            probe.flush()
+    except OSError:
+        return False
+    return True

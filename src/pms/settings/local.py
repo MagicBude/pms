@@ -36,6 +36,7 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
 DATA_DIR = ensure_private_directory(
     Path(os.environ.get("PMS_DATA_DIR", BASE_DIR / "data")).resolve()
 )
+ATTACHMENT_STORAGE_ROOT = ensure_private_directory(DATA_DIR / "attachments")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",

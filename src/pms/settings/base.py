@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "pms.tenancy.apps.TenancyConfig",
     "pms.authorization.apps.AuthorizationConfig",
     "pms.audit.apps.AuditConfig",
+    "pms.attachments.apps.AttachmentsConfig",
 ]
 MIDDLEWARE = [
     "pms.platform.middleware.RequestContextMiddleware",
