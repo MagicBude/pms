@@ -90,6 +90,44 @@ jobs:
           wait "${server_pid}" || true
           trap - EXIT
 
+          backup_root="${RUNNER_TEMP}/pms-local-backups-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          restored_data="${RUNNER_TEMP}/pms-local-restored-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "${backup_root}"
+          uv run python manage.py backup_local --destination "${backup_root}"
+          mapfile -t backup_sets < <(find "${backup_root}" -mindepth 1 -maxdepth 1 -type d)
+          if [ "${#backup_sets[@]}" -ne 1 ]; then
+            echo "Expected exactly one local backup set."
+            exit 1
+          fi
+          backup_set="${backup_sets[0]}"
+          uv run python manage.py verify_local_backup --backup-set "${backup_set}"
+          uv run python manage.py restore_local \
+            --backup-set "${backup_set}" \
+            --target-data-dir "${restored_data}"
+
+          export PMS_DATA_DIR="${restored_data}"
+          uv run python manage.py check
+          restored_log_file="${RUNNER_TEMP}/pms-local-restored-smoke.log"
+          uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000 \
+            > "${restored_log_file}" 2>&1 &
+          restored_server_pid=$!
+          trap 'kill "${restored_server_pid}" 2>/dev/null || true' EXIT
+          restored_ready=0
+          for _ in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready > /dev/null; then
+              restored_ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [ "${restored_ready}" -ne 1 ]; then
+            cat "${restored_log_file}"
+            exit 1
+          fi
+          kill "${restored_server_pid}" 2>/dev/null || true
+          wait "${restored_server_pid}" || true
+          trap - EXIT
+
       - name: Verify PMS migrations and security boundaries on PostgreSQL 18
         env:
           DJANGO_SETTINGS_MODULE: pms.settings.test
