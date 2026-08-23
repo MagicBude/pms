@@ -40,8 +40,17 @@ class ProductionRelease(models.Model):
         null=True,
         blank=True,
     )
+    cancelled_by_membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="cancelled_production_releases",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     released_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=500, blank=True)
 
     class Meta:
         db_table = "production_release"

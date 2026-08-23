@@ -299,7 +299,11 @@ def project_action_view(request: HttpRequest, project_id: UUID, action: str) -> 
         elif action == "close":
             service.close_project(context=context, project_id=project_id)
         elif action == "cancel":
-            service.cancel_project(context=context, project_id=project_id)
+            service.cancel_project(
+                context=context,
+                project_id=project_id,
+                reason=request.POST.get("reason", ""),
+            )
         else:
             raise Http404
     except EXPECTED_USER_ERRORS as error:
@@ -373,7 +377,7 @@ def bom_detail_view(request: HttpRequest, bom_id: UUID) -> HttpResponse:
     return render(
         request,
         "web/bom_detail.html",
-        {"detail": detail, "assignment_form": assignment_form},
+        {"detail": detail, "assignment_form": assignment_form, "cancel_form": CancelForm()},
     )
 
 
@@ -394,6 +398,34 @@ def bom_publish_view(request: HttpRequest, bom_id: UUID) -> HttpResponse:
         messages.error(request, str(error))
     else:
         messages.success(request, "BOM 已发布，历史版本不会被覆盖。")
+    return redirect("web-bom-detail", bom_id=bom_id)
+
+
+@require_POST
+@login_required
+def bom_cancel_view(request: HttpRequest, bom_id: UUID) -> HttpResponse:
+    context = _context(request)
+    form = CancelForm(request.POST)
+    if form.is_valid():
+        try:
+            bom_service().cancel_bom(
+                context=context,
+                bom_id=bom_id,
+                reason=str(form.cleaned_data["reason"]),
+            )
+        except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="bom.cancel",
+                object_type="bom_version",
+                object_id=bom_id,
+                error=error,
+            )
+            messages.error(request, str(error))
+        else:
+            messages.success(request, "BOM 已取消，版本内容和来源附件仍保留。")
+    else:
+        messages.error(request, "请填写取消原因。")
     return redirect("web-bom-detail", bom_id=bom_id)
 
 
@@ -494,7 +526,11 @@ def production_detail_view(request: HttpRequest, production_id: UUID) -> HttpRes
     return render(
         request,
         "web/production_detail.html",
-        {"detail": detail, "idempotency_key": uuid.uuid4().hex},
+        {
+            "detail": detail,
+            "idempotency_key": uuid.uuid4().hex,
+            "cancel_form": CancelForm(),
+        },
     )
 
 
@@ -515,6 +551,34 @@ def production_release_view(request: HttpRequest, production_id: UUID) -> HttpRe
         messages.error(request, str(error))
     else:
         messages.success(request, "投产已发布，需求数量已固化。")
+    return redirect("web-production-detail", production_id=production_id)
+
+
+@require_POST
+@login_required
+def production_cancel_view(request: HttpRequest, production_id: UUID) -> HttpResponse:
+    context = _context(request)
+    form = CancelForm(request.POST)
+    if form.is_valid():
+        try:
+            production_service().cancel(
+                context=context,
+                production_id=production_id,
+                reason=str(form.cleaned_data["reason"]),
+            )
+        except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="production_release.cancel",
+                object_type="production_release",
+                object_id=production_id,
+                error=error,
+            )
+            messages.error(request, str(error))
+        else:
+            messages.success(request, "投产批次已取消，历史需求仍保留。")
+    else:
+        messages.error(request, "请填写取消原因。")
     return redirect("web-production-detail", production_id=production_id)
 
 

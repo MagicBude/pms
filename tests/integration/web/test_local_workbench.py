@@ -267,6 +267,51 @@ def test_browser_workflow_reaches_submitted_purchase_request(
     assert AuditLog.objects.filter(action="purchase_request.submitted").count() == 1
     assert Attachment.objects.filter(id=bom.source_attachment_id, status="available").exists()
 
+    client.post(
+        f"/requests/{purchase_request.id}/cancel/",
+        {"reason": "界面取消请购"},
+    )
+    purchase_request.refresh_from_db()
+    assert purchase_request.status == PurchaseRequestStatus.CANCELLED
+    assert purchase_request.cancelled_by_membership_id == membership.id
+    assert purchase_request.cancelled_at is not None
+
+    client.post(
+        f"/production/{production.id}/cancel/",
+        {"reason": "界面取消投产"},
+    )
+    production.refresh_from_db()
+    assert production.status == ProductionStatus.CANCELLED
+    assert production.cancelled_by_membership_id == membership.id
+    assert production.cancelled_at is not None
+
+    client.post(f"/boms/{bom.id}/cancel/", {"reason": "界面取消 BOM"})
+    bom.refresh_from_db()
+    assert bom.status == "CANCELLED"
+    assert bom.cancelled_by_membership_id == membership.id
+    assert bom.cancelled_at is not None
+
+    client.post(
+        "/projects/new/",
+        {
+            "number": "UI-CANCEL-001",
+            "customer_id": str(customer.id),
+            "device_model": "待取消界面项目",
+            "owner_membership_id": str(membership.id),
+            "start_date": "",
+            "planned_completion_date": "",
+        },
+    )
+    cancellable_project = Project.objects.get(number="UI-CANCEL-001")
+    client.post(
+        f"/projects/{cancellable_project.id}/cancel/",
+        {"reason": "界面取消项目"},
+    )
+    cancellable_project.refresh_from_db()
+    assert cancellable_project.status == ProjectStatus.CANCELLED
+    assert cancellable_project.cancelled_by_membership_id == membership.id
+    assert cancellable_project.cancelled_at is not None
+
 
 @pytest.mark.django_db
 @pytest.mark.acceptance

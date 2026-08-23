@@ -40,6 +40,13 @@ class PurchaseRequest(models.Model):
         null=True,
         blank=True,
     )
+    cancelled_by_membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="cancelled_purchase_requests",
+        null=True,
+        blank=True,
+    )
     cancellation_reason = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     submitted_at = models.DateTimeField(null=True, blank=True)

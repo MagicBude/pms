@@ -18,7 +18,7 @@ from pms.audit.application.recorder import AuditRecorder
 from pms.audit.domain.events import AuditEvent, AuditResult
 from pms.authorization.application.authorize import PermissionGrantLookup, authorize
 from pms.authorization.domain.permissions import PermissionCode
-from pms.bom.domain.lifecycle import BomStatus, ensure_draft_editable, publish_bom
+from pms.bom.domain.lifecycle import BomStatus, cancel_bom, ensure_draft_editable, publish_bom
 from pms.bom.domain.validation import (
     ERROR_MESSAGES,
     BomLineErrorCode,
@@ -125,6 +125,12 @@ class BomTransactionManager(Protocol):
     def atomic(self) -> AbstractContextManager[None]: ...
 
 
+class BomDownstreamLookup(Protocol):
+    """查询 BOM 是否已经形成不能被取消隐藏的投产引用。"""
+
+    def has_active_production(self, *, tenant_id: UUID, bom_id: UUID) -> bool: ...
+
+
 class BomRepository(Protocol):
     """BOM 模块拥有的数据访问端口。"""
 
@@ -163,6 +169,15 @@ class BomRepository(Protocol):
 
     def publish(self, *, tenant_id: UUID, bom_id: UUID, membership_id: UUID) -> BomSnapshot: ...
 
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        bom_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> BomSnapshot: ...
+
     def compare(self, *, tenant_id: UUID, left_id: UUID, right_id: UUID) -> BomDiff: ...
 
 
@@ -189,6 +204,7 @@ class BomService:
         grants: PermissionGrantLookup,
         audit: AuditRecorder,
         transactions: BomTransactionManager,
+        downstream: BomDownstreamLookup,
     ) -> None:
         self._repository = repository
         self._parser = parser
@@ -196,6 +212,7 @@ class BomService:
         self._grants = grants
         self._audit = audit
         self._transactions = transactions
+        self._downstream = downstream
 
     def import_bom(self, *, context: TenantContext, command: ImportBomCommand) -> BomSnapshot:
         """上传原文件并建立保留来源行错误的 BOM 草稿。
@@ -313,6 +330,39 @@ class BomService:
             )
             self._record(context=context, action="bom.published", bom=published)
         return published
+
+    def cancel_bom(self, *, context: TenantContext, bom_id: UUID, reason: str) -> BomSnapshot:
+        """取消没有有效投产引用的 BOM，并保存原因、操作者和时间。"""
+        normalized_reason = " ".join(reason.split())
+        with self._transactions.atomic():
+            bom = self._repository.get_for_update(tenant_id=context.tenant_id, bom_id=bom_id)
+            if bom is None:
+                raise BomNotFoundError("当前租户中不存在该 BOM。")
+            self._require_project(
+                context=context,
+                project_id=bom.project_id,
+                permission=PermissionCode.BOM_CANCEL,
+            )
+            cancel_bom(
+                current=bom.status,
+                has_active_production=self._downstream.has_active_production(
+                    tenant_id=context.tenant_id, bom_id=bom.id
+                ),
+                reason=normalized_reason,
+            )
+            cancelled = self._repository.cancel(
+                tenant_id=context.tenant_id,
+                bom_id=bom.id,
+                membership_id=context.membership_id,
+                reason=normalized_reason,
+            )
+            self._record(
+                context=context,
+                action="bom.cancelled",
+                bom=cancelled,
+                summary={"reason": normalized_reason},
+            )
+        return cancelled
 
     def compare_versions(self, *, context: TenantContext, left_id: UUID, right_id: UUID) -> BomDiff:
         """返回同租户两个版本的新增、移除和数量变化键。"""

@@ -37,6 +37,7 @@ from pms.master_data.infrastructure.django.repository import (
     DjangoMasterDataRepository,
     DjangoTransactionManager,
 )
+from pms.production.infrastructure.django.repository import DjangoBomProductionDownstreamLookup
 from pms.projects.application.service import (
     CreateProjectCommand,
     ProjectService,
@@ -114,6 +115,7 @@ def bom_service(root: Path) -> BomService:
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),
         transactions=DjangoBomTransactionManager(),
+        downstream=DjangoBomProductionDownstreamLookup(),
     )
 
 
@@ -336,7 +338,11 @@ def test_bom_role_boundary_and_project_cancel_history(
         is BomStatus.PUBLISHED
     )
     with pytest.raises(InvalidProjectTransitionError, match="已有下游记录"):
-        projects_service().cancel_project(context=admin, project_id=project.id)
+        projects_service().cancel_project(
+            context=admin,
+            project_id=project.id,
+            reason="项目终止但已有正式 BOM",
+        )
 
 
 @pytest.mark.django_db
@@ -361,3 +367,39 @@ def test_closed_project_cannot_import_a_new_bom(
             ),
         )
     assert not BomVersion.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.acceptance
+def test_bom_cancel_keeps_source_lines_reason_actor_and_time(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """BOM 状态机：取消不删除版本或附件，并留下完整专用字段。"""
+    admin = initialize_context(monkeypatch)
+    project, _unit, _material = prepare_active_project(admin=admin)
+    service = bom_service(tmp_path)
+    draft = service.import_bom(
+        context=admin,
+        command=ImportBomCommand(
+            project_id=project.id,
+            version_number=1,
+            filename="cancel-bom.xlsx",
+            content=make_workbook([["MAT-001", "示例电机", "", "2", "PCS", ""]]),
+            mapping=MAPPING,
+        ),
+    )
+
+    cancelled = service.cancel_bom(
+        context=admin,
+        bom_id=draft.id,
+        reason=" 设计   方案终止 ",
+    )
+    row = BomVersion.objects.get(id=draft.id)
+    assert cancelled.status is BomStatus.CANCELLED
+    assert row.cancellation_reason == "设计 方案终止"
+    assert row.cancelled_by_membership_id == admin.membership_id
+    assert row.cancelled_at is not None
+    assert row.lines.count() == 1
+    assert row.source_attachment.status == "available"
+    with pytest.raises(InvalidBomTransitionError):
+        service.publish_bom(context=admin, bom_id=draft.id)

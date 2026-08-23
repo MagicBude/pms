@@ -231,6 +231,28 @@ class DjangoBomRepository:
         bom.save(update_fields=("status", "published_by_membership", "published_at"))
         return self._snapshot(bom)
 
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        bom_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> BomSnapshot:
+        updated = BomVersion.objects.filter(
+            id=bom_id,
+            tenant_id=tenant_id,
+            status__in=(BomStatus.DRAFT, BomStatus.PUBLISHED),
+        ).update(
+            status=BomStatus.CANCELLED,
+            cancelled_by_membership_id=membership_id,
+            cancelled_at=timezone.now(),
+            cancellation_reason=reason,
+        )
+        if updated != 1:
+            raise BomNotFoundError("BOM 版本不能取消。")
+        return self._snapshot(BomVersion.objects.get(id=bom_id, tenant_id=tenant_id))
+
     def compare(self, *, tenant_id: UUID, left_id: UUID, right_id: UUID) -> BomDiff:
         left = self._line_quantities(tenant_id=tenant_id, bom_id=left_id)
         right = self._line_quantities(tenant_id=tenant_id, bom_id=right_id)

@@ -7,7 +7,7 @@ from threading import Barrier
 from uuid import UUID
 
 import pytest
-from django.db import close_old_connections, connection
+from django.db import IntegrityError, close_old_connections, connection, transaction
 
 from pms.audit.application.recorder import AuditRecorder
 from pms.audit.domain.events import AuditEvent
@@ -17,7 +17,7 @@ from pms.authorization.application.authorize import PermissionDeniedError
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.bom.application.service import ImportBomCommand
-from pms.bom.infrastructure.django.models import BomVersion
+from pms.bom.domain.lifecycle import InvalidBomTransitionError
 from pms.master_data.application.service import CreateMaterialCommand
 from pms.master_data.infrastructure.django.models import Material
 from pms.procurement.application.service import (
@@ -235,7 +235,12 @@ def test_request_creation_is_idempotent_numbered_in_tenant_timezone_and_cancella
     assert service.submit(context=context, request_id=first.id).id == first.id
     cancelled = service.cancel(context=context, request_id=first.id, reason=" 项目   调整 ")
     assert cancelled.status is PurchaseRequestStatus.CANCELLED
-    assert PurchaseRequest.objects.get(id=first.id).cancellation_reason == "项目 调整"
+    cancelled_row = PurchaseRequest.objects.get(id=first.id)
+    assert cancelled_row.cancellation_reason == "项目 调整"
+    assert cancelled_row.cancelled_by_membership_id == context.membership_id
+    assert cancelled_row.cancelled_at is not None
+    assert cancelled_row.request_number == "20260825-001"
+    assert cancelled_row.lines.count() == 1
 
     replacement = service.create_draft(
         context=context,
@@ -244,6 +249,11 @@ def test_request_creation_is_idempotent_numbered_in_tenant_timezone_and_cancella
     )
     replacement_line = PurchaseRequestLine.objects.get(purchase_request_id=replacement.id)
     assert replacement_line.requested_quantity == 6
+    with (
+        pytest.raises(IntegrityError),
+        transaction.atomic(),
+    ):
+        PurchaseRequestLine.objects.filter(id=replacement_line.id).update(requested_quantity=-1)
     assert (
         service.submit(context=context, request_id=replacement.id).request_number == "20260825-002"
     )
@@ -288,12 +298,32 @@ def test_production_cannot_cancel_until_every_request_is_cancelled(
         production_id=production.id,
         idempotency_key="cancel-boundary",
     )
+    procurement_service().submit(context=context, request_id=request.id)
+    source = ProductionRelease.objects.get(id=production.id)
+    with pytest.raises(InvalidBomTransitionError, match="投产批次"):
+        bom_service(tmp_path).cancel_bom(
+            context=context,
+            bom_id=source.bom_version_id,
+            reason="已有投产时不得取消 BOM",
+        )
     with pytest.raises(InvalidProductionError, match="未取消请购"):
-        production_service().cancel(context=context, production_id=production.id)
+        production_service().cancel(
+            context=context,
+            production_id=production.id,
+            reason="仍有请购时不得取消",
+        )
 
     procurement_service().cancel(context=context, request_id=request.id, reason="不再采购")
-    cancelled = production_service().cancel(context=context, production_id=production.id)
+    cancelled = production_service().cancel(
+        context=context,
+        production_id=production.id,
+        reason="项目调整后停止投产",
+    )
     assert cancelled.status is ProductionStatus.CANCELLED
+    cancelled_row = ProductionRelease.objects.get(id=production.id)
+    assert cancelled_row.cancellation_reason == "项目调整后停止投产"
+    assert cancelled_row.cancelled_by_membership_id == context.membership_id
+    assert cancelled_row.cancelled_at is not None
     assert ProductionRequirement.objects.filter(production_release_id=production.id).count() == 2
 
 
@@ -376,16 +406,39 @@ def test_production_requires_active_project_and_published_bom(
     with pytest.raises(InvalidProductionError, match="已发布 BOM"):
         production_service().create_draft(context=context, command=command)
 
-    bom_service(tmp_path).publish_bom(context=context, bom_id=draft_bom.id)
-    Project.objects.filter(id=project.id).update(status="CLOSED")
-    with pytest.raises(InvalidProductionError, match="活动项目"):
-        production_service().create_draft(context=context, command=command)
-
-    Project.objects.filter(id=project.id).update(status="ACTIVE")
-    BomVersion.objects.filter(id=draft_bom.id).update(status="CANCELLED")
+    bom_service(tmp_path).cancel_bom(
+        context=context,
+        bom_id=draft_bom.id,
+        reason="取消草稿以验证状态边界",
+    )
     with pytest.raises(InvalidProductionError, match="已发布 BOM"):
         production_service().create_draft(context=context, command=command)
-    assert not ProductionRelease.objects.exists()
+
+    published_bom = bom_service(tmp_path).import_bom(
+        context=context,
+        command=ImportBomCommand(
+            project_id=project.id,
+            version_number=2,
+            filename="production-published.xlsx",
+            content=make_workbook([["MAT-001", "示例电机", "", "2", "PCS", ""]]),
+            mapping=MAPPING,
+        ),
+    )
+    bom_service(tmp_path).publish_bom(context=context, bom_id=published_bom.id)
+    published_command = CreateProductionCommand(
+        project_id=project.id,
+        bom_id=published_bom.id,
+        production_units=3,
+        production_unit="台",
+        receiving_department="装配部",
+    )
+    Project.objects.filter(id=project.id).update(status="CLOSED")
+    with pytest.raises(InvalidProductionError, match="活动项目"):
+        production_service().create_draft(context=context, command=published_command)
+
+    Project.objects.filter(id=project.id).update(status="ACTIVE")
+    production = production_service().create_draft(context=context, command=published_command)
+    assert production.status is ProductionStatus.DRAFT
 
 
 @pytest.mark.django_db(transaction=True)

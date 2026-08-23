@@ -25,6 +25,7 @@ urlpatterns = [
     ),
     path("boms/<uuid:bom_id>/", views.bom_detail_view, name="web-bom-detail"),
     path("boms/<uuid:bom_id>/publish/", views.bom_publish_view, name="web-bom-publish"),
+    path("boms/<uuid:bom_id>/cancel/", views.bom_cancel_view, name="web-bom-cancel"),
     path(
         "boms/<uuid:bom_id>/lines/<uuid:line_id>/material/",
         views.bom_assign_material_view,
@@ -49,6 +50,11 @@ urlpatterns = [
         "production/<uuid:production_id>/release/",
         views.production_release_view,
         name="web-production-release",
+    ),
+    path(
+        "production/<uuid:production_id>/cancel/",
+        views.production_cancel_view,
+        name="web-production-cancel",
     ),
     path(
         "production/<uuid:production_id>/requests/new/",

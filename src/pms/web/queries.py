@@ -86,6 +86,7 @@ class ProjectItem:
     owner_name: str
     status: str
     status_label: str
+    cancellation_reason: str
     created_at: datetime
 
 
@@ -98,6 +99,7 @@ class BomItem:
     line_count: int
     error_count: int
     source_filename: str
+    cancellation_reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +111,7 @@ class ProductionItem:
     status: str
     status_label: str
     requirement_count: int
+    cancellation_reason: str
     created_at: datetime
 
 
@@ -500,6 +503,7 @@ def _project_item(row: Project) -> ProjectItem:
         owner_name=row.owner_membership.user.username,
         status=row.status,
         status_label=STATUS_LABELS.get(row.status, row.status),
+        cancellation_reason=row.cancellation_reason,
         created_at=row.created_at,
     )
 
@@ -522,6 +526,7 @@ def _bom_item(row: BomVersion) -> BomItem:
         line_count=len(line_errors),
         error_count=sum(len(errors) for errors in line_errors),
         source_filename=row.source_attachment.original_filename,
+        cancellation_reason=row.cancellation_reason,
     )
 
 
@@ -534,6 +539,7 @@ def _production_item(row: ProductionRelease) -> ProductionItem:
         status=row.status,
         status_label=STATUS_LABELS.get(row.status, row.status),
         requirement_count=row.requirements.count(),
+        cancellation_reason=row.cancellation_reason,
         created_at=row.created_at,
     )
 

@@ -100,7 +100,14 @@ class ProductionRepository(Protocol):
         self, *, tenant_id: UUID, production_id: UUID, membership_id: UUID
     ) -> ProductionSnapshot: ...
 
-    def cancel(self, *, tenant_id: UUID, production_id: UUID) -> ProductionSnapshot: ...
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        production_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> ProductionSnapshot: ...
 
     def list_requirements(
         self, *, tenant_id: UUID, production_id: UUID
@@ -200,8 +207,11 @@ class ProductionService:
             self._record(context=context, action="production.released", production=released)
         return released
 
-    def cancel(self, *, context: TenantContext, production_id: UUID) -> ProductionSnapshot:
-        """取消没有有效请购的投产批次，并保留需求历史。"""
+    def cancel(
+        self, *, context: TenantContext, production_id: UUID, reason: str
+    ) -> ProductionSnapshot:
+        """取消没有有效请购的投产批次，并保存原因与历史需求。"""
+        normalized_reason = self._required_text(reason, field="取消原因", maximum=500)
         with self._transactions.atomic():
             found = self._repository.get_for_update(
                 tenant_id=context.tenant_id,
@@ -223,9 +233,17 @@ class ProductionService:
                 ),
             )
             cancelled = self._repository.cancel(
-                tenant_id=context.tenant_id, production_id=production.id
+                tenant_id=context.tenant_id,
+                production_id=production.id,
+                membership_id=context.membership_id,
+                reason=normalized_reason,
             )
-            self._record(context=context, action="production.cancelled", production=cancelled)
+            self._record(
+                context=context,
+                action="production.cancelled",
+                production=cancelled,
+                extra={"reason": normalized_reason},
+            )
         return cancelled
 
     def _authorize(
@@ -251,8 +269,20 @@ class ProductionService:
         return normalized
 
     def _record(
-        self, *, context: TenantContext, action: str, production: ProductionSnapshot
+        self,
+        *,
+        context: TenantContext,
+        action: str,
+        production: ProductionSnapshot,
+        extra: dict[str, object] | None = None,
     ) -> None:
+        summary: dict[str, object] = {
+            "status": production.status.value,
+            "production_units": production.production_units,
+            "requirement_count": production.requirement_count,
+        }
+        if extra:
+            summary.update(extra)
         self._audit.record(
             AuditEvent(
                 tenant_id=context.tenant_id,
@@ -262,10 +292,6 @@ class ProductionService:
                 object_type="production_release",
                 object_id=str(production.id),
                 result=AuditResult.SUCCESS,
-                summary={
-                    "status": production.status.value,
-                    "production_units": production.production_units,
-                    "requirement_count": production.requirement_count,
-                },
+                summary=summary,
             )
         )

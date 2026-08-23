@@ -35,3 +35,14 @@ def ensure_draft_editable(current: BomStatus) -> None:
     """阻止发布、替代或取消版本被原地改写。"""
     if current is not BomStatus.DRAFT:
         raise InvalidBomTransitionError("已发布或已结束的 BOM 不能原地修改，请创建新版本。")
+
+
+def cancel_bom(*, current: BomStatus, has_active_production: bool, reason: str) -> BomStatus:
+    """取消尚未形成有效投产引用的草稿或已发布 BOM。"""
+    if current not in {BomStatus.DRAFT, BomStatus.PUBLISHED}:
+        raise InvalidBomTransitionError("该 BOM 版本当前不能取消。")
+    if has_active_production:
+        raise InvalidBomTransitionError("BOM 已被未取消投产批次引用，不能取消。")
+    if not reason.strip() or len(reason.strip()) > 500:
+        raise InvalidBomTransitionError("取消原因必须为 1 至 500 个字符。")
+    return BomStatus.CANCELLED

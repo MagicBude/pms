@@ -34,6 +34,7 @@ from pms.procurement.infrastructure.django.repository import (
 )
 from pms.production.application.service import ProductionService
 from pms.production.infrastructure.django.repository import (
+    DjangoBomProductionDownstreamLookup,
     DjangoProductionRepository,
     DjangoProductionTransactionManager,
 )
@@ -83,6 +84,7 @@ def bom_service() -> BomService:
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),
         transactions=DjangoBomTransactionManager(),
+        downstream=DjangoBomProductionDownstreamLookup(),
     )
 
 

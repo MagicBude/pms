@@ -25,6 +25,13 @@ class Project(models.Model):
     created_by_membership = models.ForeignKey(
         Membership, on_delete=models.PROTECT, related_name="created_projects"
     )
+    cancelled_by_membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="cancelled_projects",
+        null=True,
+        blank=True,
+    )
     status = models.CharField(
         max_length=16,
         choices=[(status.value, status.value) for status in ProjectStatus],
@@ -32,6 +39,8 @@ class Project(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=500, blank=True)
 
     class Meta:
         db_table = "projects_project"

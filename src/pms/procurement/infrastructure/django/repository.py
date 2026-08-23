@@ -228,7 +228,14 @@ class DjangoProcurementRepository:
         )
         return self._snapshot(request)
 
-    def cancel(self, *, tenant_id: UUID, request_id: UUID, reason: str) -> PurchaseRequestSnapshot:
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        request_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> PurchaseRequestSnapshot:
         updated = PurchaseRequest.objects.filter(
             id=request_id,
             tenant_id=tenant_id,
@@ -236,6 +243,7 @@ class DjangoProcurementRepository:
         ).update(
             status=PurchaseRequestStatus.CANCELLED,
             cancellation_reason=reason,
+            cancelled_by_membership_id=membership_id,
             cancelled_at=timezone.now(),
         )
         if updated != 1:

@@ -5,6 +5,7 @@ from datetime import date
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from pms.master_data.infrastructure.django.models import Customer
 from pms.projects.application.service import (
@@ -86,6 +87,28 @@ class DjangoProjectRepository:
         updated = Project.objects.filter(id=project_id, tenant_id=tenant_id).update(status=status)
         if updated != 1:
             raise ProjectNotFoundError("当前租户中不存在该项目。")
+        return self._snapshot(Project.objects.get(id=project_id, tenant_id=tenant_id))
+
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        project_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> ProjectSnapshot:
+        updated = Project.objects.filter(
+            id=project_id,
+            tenant_id=tenant_id,
+            status__in=(ProjectStatus.DRAFT, ProjectStatus.ACTIVE),
+        ).update(
+            status=ProjectStatus.CANCELLED,
+            cancelled_by_membership_id=membership_id,
+            cancelled_at=timezone.now(),
+            cancellation_reason=reason,
+        )
+        if updated != 1:
+            raise ProjectNotFoundError("当前项目不能取消。")
         return self._snapshot(Project.objects.get(id=project_id, tenant_id=tenant_id))
 
     @staticmethod

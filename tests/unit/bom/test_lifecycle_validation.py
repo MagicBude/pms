@@ -7,6 +7,7 @@ import pytest
 from pms.bom.domain.lifecycle import (
     BomStatus,
     InvalidBomTransitionError,
+    cancel_bom,
     ensure_draft_editable,
     publish_bom,
 )
@@ -37,3 +38,15 @@ def test_every_non_draft_version_is_immutable(status: BomStatus) -> None:
     """AC-S001-020：发布或结束版本不能原地修改。"""
     with pytest.raises(InvalidBomTransitionError):
         ensure_draft_editable(status)
+
+
+@pytest.mark.unit
+def test_cancel_requires_reason_and_rejects_active_production_reference() -> None:
+    assert (
+        cancel_bom(current=BomStatus.DRAFT, has_active_production=False, reason="方案终止")
+        is BomStatus.CANCELLED
+    )
+    with pytest.raises(InvalidBomTransitionError, match="取消原因"):
+        cancel_bom(current=BomStatus.DRAFT, has_active_production=False, reason=" ")
+    with pytest.raises(InvalidBomTransitionError, match="投产批次"):
+        cancel_bom(current=BomStatus.PUBLISHED, has_active_production=True, reason="方案终止")

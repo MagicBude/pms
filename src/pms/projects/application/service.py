@@ -92,6 +92,15 @@ class ProjectRepository(Protocol):
         self, *, tenant_id: UUID, project_id: UUID, status: ProjectStatus
     ) -> ProjectSnapshot: ...
 
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        project_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> ProjectSnapshot: ...
+
 
 class ProjectService:
     """项目用例；状态只能通过命名动作迁移。"""
@@ -164,8 +173,11 @@ class ProjectService:
             decide=lambda project: close_project(project.status),
         )
 
-    def cancel_project(self, *, context: TenantContext, project_id: UUID) -> ProjectSnapshot:
-        """取消无下游记录的草稿或活动项目。"""
+    def cancel_project(
+        self, *, context: TenantContext, project_id: UUID, reason: str
+    ) -> ProjectSnapshot:
+        """取消无下游记录的草稿或活动项目，并保存原因与操作者。"""
+        normalized_reason = self._required_reason(reason)
         with self._transactions.atomic():
             project = self._repository.get_for_update(
                 tenant_id=context.tenant_id, project_id=project_id
@@ -177,18 +189,24 @@ class ProjectService:
                 permission=PermissionCode.PROJECT_CANCEL,
                 is_related=project.owner_membership_id == context.membership_id,
             )
-            target_status = cancel_project(
+            cancel_project(
                 project.status,
                 has_downstream_records=self._downstream.has_records(
                     tenant_id=context.tenant_id, project_id=project.id
                 ),
             )
-            updated = self._repository.set_status(
+            updated = self._repository.cancel(
                 tenant_id=context.tenant_id,
                 project_id=project.id,
-                status=target_status,
+                membership_id=context.membership_id,
+                reason=normalized_reason,
             )
-            self._record(context=context, action="project.cancelled", project=updated)
+            self._record(
+                context=context,
+                action="project.cancelled",
+                project=updated,
+                extra={"reason": normalized_reason},
+            )
         return updated
 
     def _transition(
@@ -233,7 +251,27 @@ class ProjectService:
             lookup=self._grants,
         )
 
-    def _record(self, *, context: TenantContext, action: str, project: ProjectSnapshot) -> None:
+    @staticmethod
+    def _required_reason(value: str) -> str:
+        normalized = " ".join(value.split())
+        if not normalized or len(normalized) > 500:
+            raise InvalidProjectDataError("取消原因必须为 1 至 500 个字符。")
+        return normalized
+
+    def _record(
+        self,
+        *,
+        context: TenantContext,
+        action: str,
+        project: ProjectSnapshot,
+        extra: dict[str, object] | None = None,
+    ) -> None:
+        summary: dict[str, object] = {
+            "number": project.number,
+            "status": project.status.value,
+        }
+        if extra:
+            summary.update(extra)
         self._audit.record(
             AuditEvent(
                 tenant_id=context.tenant_id,
@@ -243,6 +281,6 @@ class ProjectService:
                 object_type="project",
                 object_id=str(project.id),
                 result=AuditResult.SUCCESS,
-                summary={"number": project.number, "status": project.status.value},
+                summary=summary,
             )
         )

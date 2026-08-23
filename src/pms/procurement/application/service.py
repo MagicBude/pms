@@ -89,7 +89,12 @@ class ProcurementRepository(Protocol):
     ) -> PurchaseRequestSnapshot: ...
 
     def cancel(
-        self, *, tenant_id: UUID, request_id: UUID, reason: str
+        self,
+        *,
+        tenant_id: UUID,
+        request_id: UUID,
+        membership_id: UUID,
+        reason: str,
     ) -> PurchaseRequestSnapshot: ...
 
     def get_tenant_timezone(self, *, tenant_id: UUID) -> str | None: ...
@@ -215,6 +220,7 @@ class ProcurementService:
             cancelled = self._repository.cancel(
                 tenant_id=context.tenant_id,
                 request_id=request.id,
+                membership_id=context.membership_id,
                 reason=normalized_reason,
             )
             self._record(

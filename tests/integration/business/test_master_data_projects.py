@@ -292,6 +292,26 @@ def test_project_lifecycle_uses_named_actions_and_tenant_unique_number(
     )
     assert same_number_elsewhere.number == project.number
 
+    cancellable = service.create_project(
+        context=context,
+        command=CreateProjectCommand(
+            number="DEMO-CANCEL",
+            customer_id=customer.id,
+            device_model="待取消设备",
+            owner_membership_id=context.membership_id,
+        ),
+    )
+    cancelled = service.cancel_project(
+        context=context,
+        project_id=cancellable.id,
+        reason=" 客户   取消项目 ",
+    )
+    cancelled_row = Project.objects.get(id=cancellable.id)
+    assert cancelled.status is ProjectStatus.CANCELLED
+    assert cancelled_row.cancellation_reason == "客户 取消项目"
+    assert cancelled_row.cancelled_by_membership_id == context.membership_id
+    assert cancelled_row.cancelled_at is not None
+
     active = service.activate_project(context=context, project_id=project.id)
     closed = service.close_project(context=context, project_id=project.id)
     assert active.status is ProjectStatus.ACTIVE

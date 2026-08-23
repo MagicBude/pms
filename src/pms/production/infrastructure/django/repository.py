@@ -172,12 +172,24 @@ class DjangoProductionRepository:
         release.save(update_fields=("status", "released_by_membership", "released_at"))
         return self._snapshot(release)
 
-    def cancel(self, *, tenant_id: UUID, production_id: UUID) -> ProductionSnapshot:
+    def cancel(
+        self,
+        *,
+        tenant_id: UUID,
+        production_id: UUID,
+        membership_id: UUID,
+        reason: str,
+    ) -> ProductionSnapshot:
         updated = ProductionRelease.objects.filter(
             id=production_id,
             tenant_id=tenant_id,
             status__in=(ProductionStatus.DRAFT, ProductionStatus.RELEASED),
-        ).update(status=ProductionStatus.CANCELLED)
+        ).update(
+            status=ProductionStatus.CANCELLED,
+            cancelled_by_membership_id=membership_id,
+            cancelled_at=timezone.now(),
+            cancellation_reason=reason,
+        )
         if updated != 1:
             raise ProductionNotFoundError("投产批次不能取消。")
         return self._snapshot(ProductionRelease.objects.get(id=production_id, tenant_id=tenant_id))
@@ -211,4 +223,15 @@ class DjangoProductionRepository:
             production_units=release.production_units,
             status=ProductionStatus(release.status),
             requirement_count=requirement_count,
+        )
+
+
+class DjangoBomProductionDownstreamLookup:
+    """为 BOM 取消用例查询未取消投产引用。"""
+
+    def has_active_production(self, *, tenant_id: UUID, bom_id: UUID) -> bool:
+        return (
+            ProductionRelease.objects.filter(tenant_id=tenant_id, bom_version_id=bom_id)
+            .exclude(status=ProductionStatus.CANCELLED)
+            .exists()
         )
