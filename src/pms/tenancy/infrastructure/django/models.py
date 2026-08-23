@@ -12,6 +12,7 @@ class Tenant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
     code = models.SlugField(max_length=64, unique=True)
     name = models.CharField(max_length=200)
+    timezone = models.CharField(max_length=64, default="Asia/Shanghai")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

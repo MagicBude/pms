@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     "pms.master_data.apps.MasterDataConfig",
     "pms.projects.apps.ProjectsConfig",
     "pms.bom.apps.BomConfig",
+    "pms.production.apps.ProductionConfig",
+    "pms.procurement.apps.ProcurementConfig",
 ]
 MIDDLEWARE = [
     "pms.platform.middleware.RequestContextMiddleware",

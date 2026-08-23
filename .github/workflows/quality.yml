@@ -153,7 +153,7 @@ jobs:
           uv run python manage.py initialize_pms --no-color
           unset PMS_INITIAL_ADMIN_PASSWORD
           uv run python manage.py initialize_pms --no-color
-          uv run pytest tests/integration/identity tests/integration/tenancy tests/integration/authorization tests/integration/audit tests/integration/platform tests/integration/attachments tests/integration/bootstrap --no-cov
+          uv run pytest tests/integration/identity tests/integration/tenancy tests/integration/authorization tests/integration/audit tests/integration/platform tests/integration/attachments tests/integration/bootstrap tests/integration/business --no-cov
 
       - name: Smoke test PostgreSQL 18 server startup
         env:
