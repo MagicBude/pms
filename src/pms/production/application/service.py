@@ -12,6 +12,7 @@ from pms.authorization.application.authorize import PermissionGrantLookup, autho
 from pms.authorization.domain.permissions import PermissionCode
 from pms.bom.domain.lifecycle import BomStatus
 from pms.production.domain.release import (
+    InvalidProductionError,
     ProductionStatus,
     cancel_production,
     release_production,
@@ -153,9 +154,9 @@ class ProductionService:
             is_related=source.is_related,
         )
         if source.project_status is not ProjectStatus.ACTIVE:
-            raise ValueError("只有活动项目可以创建投产批次。")
+            raise InvalidProductionError("只有活动项目可以创建投产批次。")
         if source.bom_status is not BomStatus.PUBLISHED:
-            raise ValueError("投产批次必须引用当前已发布 BOM。")
+            raise InvalidProductionError("投产批次必须引用当前已发布 BOM。")
         units = validate_production_units(command.production_units)
         production_unit = self._required_text(command.production_unit, field="投产单位", maximum=64)
         department = self._required_text(

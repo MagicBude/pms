@@ -19,10 +19,10 @@ def test_required_quantity_is_decimal_bom_quantity_times_integer_units() -> None
     assert calculate_required_quantity(
         quantity_per_unit=Decimal("2.500000"), production_units=3
     ) == Decimal("7.500000")
-    with pytest.raises(InvalidProductionError):
-        validate_production_units(0)
-    with pytest.raises(InvalidProductionError):
-        validate_production_units(True)
+    for invalid in (None, 0, -1, 1.5, True):
+        with pytest.raises(InvalidProductionError):
+            validate_production_units(invalid)
+    assert validate_production_units(3) == 3
 
 
 @pytest.mark.unit

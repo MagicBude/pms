@@ -16,9 +16,9 @@ class InvalidProductionError(ValueError):
     """表示投产字段、状态或下游历史不允许请求动作。"""
 
 
-def validate_production_units(value: int) -> int:
-    """验证投产台数必须是正整数，首版不接受小数批次。"""
-    if isinstance(value, bool) or value <= 0:
+def validate_production_units(value: object) -> int:
+    """验证投产台数必须是正整数，拒绝缺失值、布尔值和小数。"""
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
         raise InvalidProductionError("投产台数必须是大于零的整数。")
     return value
 

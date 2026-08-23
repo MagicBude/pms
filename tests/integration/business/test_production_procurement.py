@@ -7,7 +7,7 @@ from threading import Barrier
 from uuid import UUID
 
 import pytest
-from django.db import connection
+from django.db import close_old_connections, connection
 
 from pms.audit.application.recorder import AuditRecorder
 from pms.audit.domain.events import AuditEvent
@@ -17,6 +17,7 @@ from pms.authorization.application.authorize import PermissionDeniedError
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.bom.application.service import ImportBomCommand
+from pms.bom.infrastructure.django.models import BomVersion
 from pms.master_data.application.service import CreateMaterialCommand
 from pms.master_data.infrastructure.django.models import Material
 from pms.procurement.application.service import (
@@ -46,6 +47,7 @@ from pms.production.infrastructure.django.repository import (
     DjangoProductionRepository,
     DjangoProductionTransactionManager,
 )
+from pms.projects.infrastructure.django.models import Project
 from pms.tenancy.domain.context import TenantContext
 from pms.tenancy.infrastructure.django.models import Tenant
 from tests.integration.business.test_bom_workflow import (
@@ -151,8 +153,43 @@ def test_release_snapshots_formula_and_request_excludes_non_procurement(
     )
     assert production.status is ProductionStatus.RELEASED
     assert [item.required_quantity for item in requirements] == [6, 15]
+    released_row = ProductionRelease.objects.get(id=production.id)
+    source_bom_id = released_row.bom_version_id
     Material.objects.filter(code="MAT-001").update(name="后来修改的名称")
     assert requirements[0].material_name_snapshot == "示例电机"
+
+    non_procurement = next(item for item in requirements if not item.procurement_required)
+    v2 = bom_service(tmp_path).import_bom(
+        context=context,
+        command=ImportBomCommand(
+            project_id=released_row.project_id,
+            version_number=2,
+            filename="production-v2.xlsx",
+            content=make_workbook(
+                [
+                    ["MAT-001", "后来修改的名称", "", "9", "PCS", "V2 调整"],
+                    [
+                        non_procurement.material_code_snapshot,
+                        non_procurement.material_name_snapshot,
+                        "",
+                        "8",
+                        "PCS",
+                        "V2 调整",
+                    ],
+                ]
+            ),
+            mapping=MAPPING,
+        ),
+    )
+    bom_service(tmp_path).publish_bom(context=context, bom_id=v2.id)
+    released_row.refresh_from_db()
+    frozen_requirements = list(
+        ProductionRequirement.objects.filter(production_release_id=production.id).order_by(
+            "material_code_snapshot"
+        )
+    )
+    assert released_row.bom_version_id == source_bom_id
+    assert [item.required_quantity for item in frozen_requirements] == [6, 15]
 
     request = procurement_service().create_draft(
         context=context,
@@ -291,6 +328,47 @@ def test_purchase_request_permission_and_tenant_boundaries(
         )
 
 
+@pytest.mark.django_db
+@pytest.mark.acceptance
+def test_production_requires_active_project_and_published_bom(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """AC-S001-008/022：关闭项目、草稿或取消 BOM 都不能形成投产需求。"""
+    context = initialize_context(monkeypatch)
+    project, _unit, _material = prepare_active_project(admin=context)
+    draft_bom = bom_service(tmp_path).import_bom(
+        context=context,
+        command=ImportBomCommand(
+            project_id=project.id,
+            version_number=1,
+            filename="production-boundary.xlsx",
+            content=make_workbook([["MAT-001", "示例电机", "", "2", "PCS", ""]]),
+            mapping=MAPPING,
+        ),
+    )
+    command = CreateProductionCommand(
+        project_id=project.id,
+        bom_id=draft_bom.id,
+        production_units=3,
+        production_unit="台",
+        receiving_department="装配部",
+    )
+
+    with pytest.raises(InvalidProductionError, match="已发布 BOM"):
+        production_service().create_draft(context=context, command=command)
+
+    bom_service(tmp_path).publish_bom(context=context, bom_id=draft_bom.id)
+    Project.objects.filter(id=project.id).update(status="CLOSED")
+    with pytest.raises(InvalidProductionError, match="活动项目"):
+        production_service().create_draft(context=context, command=command)
+
+    Project.objects.filter(id=project.id).update(status="ACTIVE")
+    BomVersion.objects.filter(id=draft_bom.id).update(status="CANCELLED")
+    with pytest.raises(InvalidProductionError, match="已发布 BOM"):
+        production_service().create_draft(context=context, command=command)
+    assert not ProductionRelease.objects.exists()
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.postgresql
 @pytest.mark.acceptance
@@ -337,3 +415,37 @@ def test_concurrent_submissions_receive_distinct_tenant_numbers(
     with ThreadPoolExecutor(max_workers=2) as executor:
         numbers = set(executor.map(submit_after_barrier, (first_request.id, second_request.id)))
     assert numbers == {"20260825-001", "20260825-002"}
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.postgresql
+@pytest.mark.acceptance
+def test_concurrent_creation_allows_only_one_request_for_a_production_source(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """AC-S001-029/030/033：并发争用同一来源时只有一份有效请购。"""
+    if connection.vendor != "postgresql":
+        pytest.skip("同一来源并发验收只在 PostgreSQL 事务语义下执行。")
+    context = initialize_context(monkeypatch)
+    production = create_released_production(context=context, tmp_path=tmp_path)
+    barrier = Barrier(2)
+
+    def create_after_barrier(idempotency_key: str) -> str:
+        close_old_connections()
+        try:
+            barrier.wait()
+            request = procurement_service().create_draft(
+                context=context,
+                production_id=production.id,
+                idempotency_key=idempotency_key,
+            )
+        except PurchaseRequestConflictError:
+            return "conflict"
+        finally:
+            close_old_connections()
+        return str(request.id)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(create_after_barrier, ("race-one", "race-two")))
+    assert outcomes.count("conflict") == 1
+    assert PurchaseRequest.objects.filter(production_release_id=production.id).count() == 1

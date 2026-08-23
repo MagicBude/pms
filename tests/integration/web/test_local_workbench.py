@@ -136,10 +136,12 @@ def test_browser_workflow_reaches_submitted_purchase_request(
             "owner_membership_id": str(membership.id),
             "start_date": "2026-08-24",
             "planned_completion_date": "2026-09-30",
+            "status": "CLOSED",
         },
     )
     project = Project.objects.get(number="UI-2026-001")
     assert project_response.headers["Location"] == f"/projects/{project.id}/"
+    assert project.status == ProjectStatus.DRAFT
     client.post(f"/projects/{project.id}/activate/")
     project.refresh_from_db()
     assert project.status == ProjectStatus.ACTIVE
