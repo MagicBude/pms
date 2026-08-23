@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "pms.platform.apps.PlatformConfig",
     "pms.identity.apps.IdentityConfig",
     "pms.tenancy.apps.TenancyConfig",
     "pms.authorization.apps.AuthorizationConfig",

@@ -374,6 +374,8 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-009：验证可重复初始化
 
+实施状态：本地候选完成（2026-08-23，等待 PostgreSQL 18 CI）
+
 建议提交：`test(repo): 验证双数据库初始化与基础边界`
 
 主要内容：

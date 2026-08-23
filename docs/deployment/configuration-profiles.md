@@ -31,9 +31,13 @@ PMS 使用同一套业务代码，通过 `local`、`lan`、`cloud` 和 `test` �
 | `PMS_BIND_HOST` | local 可选 | 默认 `127.0.0.1`，仅接受 IP loopback 地址 |
 | `PMS_DEBUG` | local 可选 | 默认关闭，仅接受明确布尔值 |
 | `PMS_DATA_DIR` | local 可选 | 默认仓库下被忽略的 `data/`；交付版应使用应用私有目录 |
+| `PMS_INITIAL_ADMIN_PASSWORD` | 初始化命令首次执行 | 临时注入，成功后立即清除；不写入 Git、命令行或日志 |
 
 `local` 在启动时创建缺失的数据目录及其 `attachments/` 私有子目录。Django 的启动迁移
 检查可能同时创建 SQLite 文件；附件原文不会写入数据库，也不会存放到仓库可跟踪目录。
+
+`PMS_INITIAL_ADMIN_PASSWORD` 不是常驻应用配置，只由平台管理命令 `initialize_pms` 在需要
+首次创建管理员时读取。重复初始化不会用它重置密码。
 
 ## 4. 安全差异
 

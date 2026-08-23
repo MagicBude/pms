@@ -56,6 +56,40 @@ jobs:
       - name: Test with coverage
         run: uv run pytest
 
+      - name: Smoke test fresh local installation
+        env:
+          DJANGO_SETTINGS_MODULE: pms.settings.local
+          PMS_DATA_DIR: ${{ runner.temp }}/pms-local-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          PMS_INITIAL_ADMIN_PASSWORD: ci-only-F009-local-admin-5927
+        run: |
+          set -euo pipefail
+          uv run python manage.py migrate --noinput
+          uv run python manage.py migrate --noinput
+          uv run python manage.py initialize_pms --no-color
+          unset PMS_INITIAL_ADMIN_PASSWORD
+          uv run python manage.py initialize_pms --no-color
+          uv run python manage.py check
+          log_file="${RUNNER_TEMP}/pms-local-smoke.log"
+          uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000 \
+            > "${log_file}" 2>&1 &
+          server_pid=$!
+          trap 'kill "${server_pid}" 2>/dev/null || true' EXIT
+          ready=0
+          for _ in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready > /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [ "${ready}" -ne 1 ]; then
+            cat "${log_file}"
+            exit 1
+          fi
+          kill "${server_pid}" 2>/dev/null || true
+          wait "${server_pid}" || true
+          trap - EXIT
+
       - name: Verify PMS migrations and security boundaries on PostgreSQL 18
         env:
           DJANGO_SETTINGS_MODULE: pms.settings.test
@@ -66,9 +100,48 @@ jobs:
           PMS_DB_PASSWORD: ci-only-password
           PMS_DB_HOST: 127.0.0.1
           PMS_DB_PORT: "5432"
+          PMS_INITIAL_ADMIN_PASSWORD: ci-only-F009-postgresql-admin-5927
         run: |
           uv run python manage.py migrate --noinput
-          uv run pytest tests/integration/identity tests/integration/tenancy tests/integration/authorization tests/integration/audit tests/integration/platform tests/integration/attachments --no-cov
+          uv run python manage.py migrate --noinput
+          uv run python manage.py initialize_pms --no-color
+          unset PMS_INITIAL_ADMIN_PASSWORD
+          uv run python manage.py initialize_pms --no-color
+          uv run pytest tests/integration/identity tests/integration/tenancy tests/integration/authorization tests/integration/audit tests/integration/platform tests/integration/attachments tests/integration/bootstrap --no-cov
+
+      - name: Smoke test PostgreSQL 18 server startup
+        env:
+          DJANGO_SETTINGS_MODULE: pms.settings.lan
+          PMS_SECRET_KEY: ci-only-secret-key-not-for-production-startup-smoke
+          PMS_ALLOWED_HOSTS: 127.0.0.1
+          PMS_DB_NAME: pms_test
+          PMS_DB_USER: pms
+          PMS_DB_PASSWORD: ci-only-password
+          PMS_DB_HOST: 127.0.0.1
+          PMS_DB_PORT: "5432"
+        run: |
+          set -euo pipefail
+          uv run python manage.py check
+          log_file="${RUNNER_TEMP}/pms-postgresql-smoke.log"
+          uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000 \
+            > "${log_file}" 2>&1 &
+          server_pid=$!
+          trap 'kill "${server_pid}" 2>/dev/null || true' EXIT
+          ready=0
+          for _ in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready > /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [ "${ready}" -ne 1 ]; then
+            cat "${log_file}"
+            exit 1
+          fi
+          kill "${server_pid}" 2>/dev/null || true
+          wait "${server_pid}" || true
+          trap - EXIT
 
       - name: Django system and migration checks
         run: |

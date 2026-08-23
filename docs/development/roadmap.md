@@ -39,6 +39,7 @@
 - [x] F-006：建立权限策略与追加式审计边界，完成 SQLite/PostgreSQL 18 验证。
 - [x] F-007：建立健康检查、结构化日志和安全错误边界，完成 SQLite/PostgreSQL 18 验证。
 - [x] F-008：建立附件端口和本地存储适配器，完成 SQLite/PostgreSQL 18 验证。
+- [ ] F-009：建立可重复安装初始化与双数据库烟雾验证（本地候选完成，等待 PostgreSQL 18 CI）。
 - [ ] 建立配置、日志、健康检查和数据库迁移。
 - [ ] 建立 tenant、user、membership、role、audit 基础能力。
 - [ ] 建立本机初始化、备份和恢复能力。

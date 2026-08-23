@@ -4,6 +4,45 @@ from pms.authorization.domain.permissions import PermissionCode as P
 from pms.authorization.domain.permissions import PermissionScope as S
 from pms.authorization.domain.permissions import RoleCode as R
 
+DEFAULT_PERMISSION_NAMES: dict[P, str] = {
+    P.CONFIGURATION_MANAGE: "管理系统配置",
+    P.MEMBERSHIP_MANAGE: "管理租户成员与角色",
+    P.CUSTOMER_VIEW: "查看客户",
+    P.CUSTOMER_MANAGE: "维护客户",
+    P.MATERIAL_VIEW: "查看物料与基础资料",
+    P.MATERIAL_MANAGE: "维护物料与基础资料",
+    P.PROJECT_VIEW: "查看项目",
+    P.PROJECT_CREATE: "创建项目",
+    P.PROJECT_EDIT: "编辑项目草稿",
+    P.PROJECT_ACTIVATE: "启用项目",
+    P.PROJECT_CLOSE: "关闭项目",
+    P.PROJECT_CANCEL: "取消项目",
+    P.BOM_VIEW: "查看 BOM",
+    P.BOM_IMPORT: "导入 BOM",
+    P.BOM_EDIT: "修正 BOM",
+    P.BOM_PUBLISH: "发布 BOM 版本",
+    P.BOM_CANCEL: "取消 BOM 版本",
+    P.PRODUCTION_RELEASE_VIEW: "查看投产批次",
+    P.PRODUCTION_RELEASE_CREATE: "创建投产批次",
+    P.PRODUCTION_RELEASE_RELEASE: "发布投产批次",
+    P.PRODUCTION_RELEASE_CANCEL: "取消投产批次",
+    P.PURCHASE_REQUEST_VIEW: "查看生产请购",
+    P.PURCHASE_REQUEST_CREATE: "创建生产请购",
+    P.PURCHASE_REQUEST_SUBMIT: "提交生产请购",
+    P.PURCHASE_REQUEST_CANCEL: "取消生产请购",
+    P.ATTACHMENT_DOWNLOAD: "下载授权业务对象附件",
+    P.AUDIT_VIEW_RELATED: "查看授权范围相关审计",
+    P.AUDIT_VIEW_ALL: "查看租户全部审计",
+}
+
+DEFAULT_ROLE_NAMES: dict[R, str] = {
+    R.TENANT_ADMIN: "系统管理员",
+    R.PROJECT_MANAGER: "项目负责人",
+    R.BOM_ENGINEER: "BOM 工程人员",
+    R.REQUESTER: "生产/采购申请人员",
+    R.AUDITOR: "只读/审计人员",
+}
+
 DEFAULT_ROLE_GRANTS: dict[R, dict[P, S]] = {
     R.TENANT_ADMIN: dict.fromkeys(P, S.TENANT),
     R.PROJECT_MANAGER: {

@@ -1,10 +1,10 @@
 # 开发环境搭建
 
-状态：F-002 基线
+状态：F-009 本地候选基线
 
 ## 1. 当前能力
 
-本页覆盖 Python、uv、依赖同步，以及 F-002 的最小 Django ASGI 启动。当前根路径只是工程连通性提示，不是正式业务界面；不得据此创建数据库或录入真实数据。
+本页覆盖 Python、uv、依赖同步，以及当前 Django ASGI、迁移和初始化入口。当前根路径只是工程连通性提示，不是正式业务界面；不得据此录入真实业务数据。
 
 ## 2. 前置条件
 
@@ -108,9 +108,18 @@ uv run python manage.py migrate --noinput
 ```
 
 当前迁移会建立 Django 权限、内容类型、会话，以及 PMS 自有 identity、tenancy、
-authorization、audit 和 attachments 表，不会创建默认 `auth_user`。F-009 以前只建立结构，不自动写入
+authorization、audit 和 attachments 表，不会创建默认 `auth_user`。迁移只建立结构，不自动写入
 默认租户、管理员或角色权限数据。重复执行应显示 `No migrations to apply`。不要手工修改
 SQLite 结构；模型变化必须生成、审查并提交迁移。
+
+F-009 起，迁移成功后使用显式命令建立安装基线：
+
+```powershell
+uv run python manage.py initialize_pms
+```
+
+首次执行必须通过环境变量安全提供初始密码；详细命令、默认值、重复执行和冲突策略见
+[首次安装与可重复初始化](initialization.md)。应用启动和 `migrate` 都不会隐式创建高权限用户。
 
 ## 8. 更新依赖
 
