@@ -18,7 +18,7 @@ from pms.authorization.application.authorize import PermissionDeniedError
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.authorization.infrastructure.django.models import MembershipRole, Role
-from pms.bom.application.service import BomService, ImportBomCommand
+from pms.bom.application.service import BomImportError, BomService, ImportBomCommand
 from pms.bom.domain.lifecycle import BomStatus, InvalidBomTransitionError
 from pms.bom.domain.validation import BomLineErrorCode
 from pms.bom.infrastructure.django.models import BomLine, BomVersion
@@ -337,3 +337,27 @@ def test_bom_role_boundary_and_project_cancel_history(
     )
     with pytest.raises(InvalidProjectTransitionError, match="已有下游记录"):
         projects_service().cancel_project(context=admin, project_id=project.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.acceptance
+def test_closed_project_cannot_import_a_new_bom(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """AC-S001-008：项目关闭后不能通过 BOM 入口继续建立下游记录。"""
+    admin = initialize_context(monkeypatch)
+    project, _unit, _material = prepare_active_project(admin=admin)
+    projects_service().close_project(context=admin, project_id=project.id)
+
+    with pytest.raises(BomImportError, match="活动项目"):
+        bom_service(tmp_path).import_bom(
+            context=admin,
+            command=ImportBomCommand(
+                project_id=project.id,
+                version_number=1,
+                filename="closed-project.xlsx",
+                content=make_workbook([["MAT-001", "示例电机", "", "2", "PCS", ""]]),
+                mapping=MAPPING,
+            ),
+        )
+    assert not BomVersion.objects.exists()

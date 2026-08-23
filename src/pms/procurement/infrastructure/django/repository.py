@@ -30,6 +30,7 @@ from pms.production.infrastructure.django.models import (
     ProductionRelease,
     ProductionRequirement,
 )
+from pms.projects.domain.lifecycle import ProjectStatus
 from pms.tenancy.infrastructure.django.models import Membership, Tenant
 
 
@@ -48,7 +49,13 @@ class DjangoProcurementRepository:
     ) -> PurchaseSource | None:
         row = (
             ProductionRelease.objects.filter(id=production_id, tenant_id=tenant_id)
-            .values("id", "project_id", "status", "project__owner_membership_id")
+            .values(
+                "id",
+                "project_id",
+                "status",
+                "project__status",
+                "project__owner_membership_id",
+            )
             .first()
         )
         if row is None:
@@ -57,6 +64,7 @@ class DjangoProcurementRepository:
             production_id=row["id"],
             project_id=row["project_id"],
             status=ProductionStatus(row["status"]),
+            project_status=ProjectStatus(row["project__status"]),
             is_related=row["project__owner_membership_id"] == membership_id,
         )
 

@@ -18,6 +18,7 @@ from pms.procurement.domain.request import (
     submit_request,
 )
 from pms.production.domain.release import ProductionStatus
+from pms.projects.domain.lifecycle import ProjectStatus
 from pms.tenancy.domain.context import TenantContext
 
 
@@ -36,6 +37,7 @@ class PurchaseSource:
     production_id: UUID
     project_id: UUID
     status: ProductionStatus
+    project_status: ProjectStatus
     is_related: bool
 
 
@@ -136,6 +138,8 @@ class ProcurementService:
         )
         if source.status is not ProductionStatus.RELEASED:
             raise ValueError("只有已发布投产批次可以生成请购。")
+        if source.project_status is not ProjectStatus.ACTIVE:
+            raise PurchaseRequestConflictError("只有活动项目可以生成新的生产请购。")
         with self._transactions.atomic():
             request, created = self._repository.create_or_get_draft(
                 tenant_id=context.tenant_id,

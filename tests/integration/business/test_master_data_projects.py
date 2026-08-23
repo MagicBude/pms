@@ -277,6 +277,21 @@ def test_project_lifecycle_uses_named_actions_and_tenant_unique_number(
     with pytest.raises(DuplicateProjectNumberError):
         service.create_project(context=context, command=command)
 
+    other_context = create_second_context(role=RoleCode.TENANT_ADMIN, suffix="project-number")
+    other_customer = master_data_service().create_customer(
+        context=other_context, code="CUS-001", name="另一租户客户"
+    )
+    same_number_elsewhere = service.create_project(
+        context=other_context,
+        command=CreateProjectCommand(
+            number=command.number,
+            customer_id=other_customer.id,
+            device_model="另一租户设备",
+            owner_membership_id=other_context.membership_id,
+        ),
+    )
+    assert same_number_elsewhere.number == project.number
+
     active = service.activate_project(context=context, project_id=project.id)
     closed = service.close_project(context=context, project_id=project.id)
     assert active.status is ProjectStatus.ACTIVE

@@ -299,6 +299,25 @@ def test_production_cannot_cancel_until_every_request_is_cancelled(
 
 @pytest.mark.django_db
 @pytest.mark.acceptance
+def test_closed_project_cannot_create_a_new_purchase_request(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """AC-S001-008：项目关闭后既有投产历史保留，但不能生成新的生产请购。"""
+    context = initialize_context(monkeypatch)
+    production = create_released_production(context=context, tmp_path=tmp_path)
+    Project.objects.filter(id=production.project_id).update(status="CLOSED")
+
+    with pytest.raises(PurchaseRequestConflictError, match="活动项目"):
+        procurement_service().create_draft(
+            context=context,
+            production_id=production.id,
+            idempotency_key="closed-project-request",
+        )
+    assert not PurchaseRequest.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.acceptance
 def test_purchase_request_permission_and_tenant_boundaries(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
