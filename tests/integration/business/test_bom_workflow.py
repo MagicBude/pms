@@ -2,6 +2,7 @@
 
 from io import BytesIO
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -12,6 +13,8 @@ from pms.attachments.application.service import AttachmentService
 from pms.attachments.infrastructure.django.models import Attachment
 from pms.attachments.infrastructure.django.repository import DjangoAttachmentRepository
 from pms.attachments.infrastructure.local_storage import LocalBinaryStorage
+from pms.audit.application.recorder import AuditRecorder
+from pms.audit.domain.events import AuditEvent
 from pms.audit.infrastructure.django.models import AuditLog
 from pms.audit.infrastructure.django.recorder import DjangoAuditRecorder
 from pms.authorization.application.authorize import PermissionDeniedError
@@ -104,7 +107,15 @@ def projects_service() -> ProjectService:
     )
 
 
-def bom_service(root: Path) -> BomService:
+class FailingAuditRecorder:
+    """在 BOM 保存完成后模拟必要审计失败，验证整个发布事务回滚。"""
+
+    def record(self, event: AuditEvent) -> UUID:
+        del event
+        raise RuntimeError("simulated BOM audit failure")
+
+
+def bom_service(root: Path, *, audit: AuditRecorder | None = None) -> BomService:
     return BomService(
         repository=DjangoBomRepository(),
         parser=OpenPyxlBomSpreadsheetParser(),
@@ -113,7 +124,7 @@ def bom_service(root: Path) -> BomService:
             storage=LocalBinaryStorage(root),
         ),
         grants=DjangoPermissionGrantLookup(),
-        audit=DjangoAuditRecorder(),
+        audit=audit or DjangoAuditRecorder(),
         transactions=DjangoBomTransactionManager(),
         downstream=DjangoBomProductionDownstreamLookup(),
     )
@@ -209,6 +220,11 @@ def test_valid_bom_is_retained_published_superseded_and_diffed(
             mapping=MAPPING,
         ),
     )
+    with pytest.raises(RuntimeError, match="simulated BOM audit failure"):
+        bom_service(tmp_path, audit=FailingAuditRecorder()).publish_bom(context=admin, bom_id=v2.id)
+    assert BomVersion.objects.get(id=v1.id).status == BomStatus.PUBLISHED
+    assert BomVersion.objects.get(id=v2.id).status == BomStatus.DRAFT
+
     service.publish_bom(context=admin, bom_id=v2.id)
     assert BomVersion.objects.get(id=v1.id).status == BomStatus.SUPERSEDED
     assert service.compare_versions(context=admin, left_id=v1.id, right_id=v2.id).changed == (
