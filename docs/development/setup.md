@@ -77,11 +77,27 @@ uv run python manage.py makemigrations --check --dry-run
 - Django system checks 和 F-002 配置测试通过；
 - 迁移检查显示 `No changes detected`，启动过程不创建用户表或业务表。
 
-本批次尚未配置 Ruff、mypy、pytest 或 CI 命令。它们已经锁入依赖，但只有 F-003 配置完成并实际运行后才能报告检查通过。
+配置档案和环境变量见[部署配置档案](../deployment/configuration-profiles.md)。
 
-配置档案和环境变量见[部署配置档案](../deployment/configuration-profiles.md)。F-003 才会把 Ruff、mypy、pytest 和 CI 配置为统一质量门槛。
+## 6. 质量检查
 
-## 6. 更新依赖
+F-003 起，提交前从仓库根目录依次执行：
+
+```powershell
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src tests
+uv run pytest
+uv run python manage.py check
+uv run python manage.py makemigrations --check --dry-run
+uv run pip-audit --local --skip-editable --progress-spinner off
+```
+
+`pytest` 启用严格配置、严格标记、分支覆盖率和 80% 总门槛。覆盖率只统计当前进程能准确采集的应用与可复用配置逻辑；部署档案由隔离子进程测试验证，不能以覆盖率数字替代行为断言。
+
+GitHub Actions 对 `main` 推送和 Pull Request 执行相同门槛，并预启动 PostgreSQL 18。F-004 建立首批迁移前，PostgreSQL 服务只验证 CI 基础设施，不声称已经完成双数据库迁移测试。
+
+## 7. 更新依赖
 
 依赖更新必须是独立、可评审任务：
 

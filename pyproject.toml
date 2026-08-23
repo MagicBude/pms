@@ -31,3 +31,79 @@ test = [
 security = [
     "pip-audit>=2.9,<3",
 ]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = [".internal"]
+
+[tool.ruff.lint]
+select = [
+    "B",      # 常见 Python 逻辑陷阱。
+    "C4",     # 可简化且更清晰的集合写法。
+    "DTZ",    # 禁止无时区时间进入业务代码。
+    "E4",     # import 与缩进错误。
+    "E7",     # 语句结构错误。
+    "E9",     # 运行时语法错误。
+    "F",      # Pyflakes 未定义、未使用等错误。
+    "I",      # import 顺序。
+    "PERF",   # 明显性能反模式。
+    "PLC",    # Pylint 约定中的高价值规则。
+    "PLE",    # Pylint 可证明错误。
+    "PLW",    # Pylint 警告。
+    "RUF100", # 无效 noqa，防止豁免长期漂移。
+    "S",      # Bandit 安全规则。
+    "SIM",    # 不改变含义的结构简化。
+    "UP",     # 面向 Python 3.14 的现代语法。
+]
+
+[tool.ruff.lint.per-file-ignores]
+"manage.py" = ["PLC0415"]
+"src/pms/settings/*.py" = ["F403", "F405"]
+"tests/**/*.py" = ["S101", "S104", "S603"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = "src"
+plugins = ["mypy_django_plugin.main"]
+exclude = ["^\\.internal/"]
+
+[tool.django-stubs]
+django_settings_module = "pms.settings.test"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "pms.settings.test"
+testpaths = ["tests"]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "--cov=pms",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+markers = [
+    "unit: 不访问 Django 和数据库的快速单元测试。",
+    "sqlite: 使用隔离 SQLite 的集成测试。",
+    "postgresql: 需要 PostgreSQL 18 的集成测试。",
+    "acceptance: 对应正式 Given/When/Then 案例的验收测试。",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["pms"]
+omit = [
+    "src/pms/asgi.py",
+    "src/pms/settings/__init__.py",
+    "src/pms/settings/base.py",
+    "src/pms/settings/cloud.py",
+    "src/pms/settings/lan.py",
+    "src/pms/settings/local.py",
+    "src/pms/settings/server.py",
+    "src/pms/settings/test.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "if __name__ == .__main__.:"]

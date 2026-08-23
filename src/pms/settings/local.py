@@ -28,9 +28,7 @@ try:
     if not ipaddress.ip_address(BIND_HOST).is_loopback:
         raise ConfigurationError("local 档案的 PMS_BIND_HOST 必须是 loopback 地址。")
 except ValueError as error:
-    raise ConfigurationError(
-        "local 档案的 PMS_BIND_HOST 必须是 IP loopback 地址。"
-    ) from error
+    raise ConfigurationError("local 档案的 PMS_BIND_HOST 必须是 IP loopback 地址。") from error
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
 DATA_DIR = ensure_private_directory(

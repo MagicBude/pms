@@ -252,6 +252,8 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-003：建立自动化质量门槛
 
+实施状态：已完成（2026-08-23）
+
 建议提交：`chore(repo): 建立代码质量与持续集成门槛`
 
 主要内容：

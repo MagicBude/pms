@@ -12,7 +12,13 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pms.settings.test")
 import django
 from django.test import Client, SimpleTestCase, override_settings
 
-from pms.settings.environment import ConfigurationError, read_bool
+from pms.settings.environment import (
+    ConfigurationError,
+    ensure_private_directory,
+    read_bool,
+    read_csv,
+    require,
+)
 
 django.setup()
 
@@ -23,6 +29,35 @@ class EnvironmentParsingTests(unittest.TestCase):
     def test_read_bool_rejects_ambiguous_value(self) -> None:
         with self.assertRaises(ConfigurationError):
             read_bool("PMS_DEBUG", default=False, environ={"PMS_DEBUG": "sometimes"})
+
+    def test_read_bool_accepts_explicit_values_and_default(self) -> None:
+        self.assertTrue(read_bool("FLAG", default=False, environ={"FLAG": "YES"}))
+        self.assertFalse(read_bool("FLAG", default=True, environ={"FLAG": "off"}))
+        self.assertTrue(read_bool("FLAG", default=True, environ={}))
+
+    def test_require_rejects_missing_value_without_echoing_a_secret(self) -> None:
+        with self.assertRaisesRegex(ConfigurationError, "PMS_SECRET_KEY"):
+            require("PMS_SECRET_KEY", environ={"PMS_SECRET_KEY": "  "})
+
+    def test_require_strips_value(self) -> None:
+        self.assertEqual(require("NAME", environ={"NAME": " pms "}), "pms")
+
+    def test_read_csv_normalizes_values_and_validates_required_list(self) -> None:
+        self.assertEqual(
+            read_csv("HOSTS", required=True, environ={"HOSTS": "a.example, b.example, "}),
+            ["a.example", "b.example"],
+        )
+        self.assertEqual(read_csv("HOSTS", required=False, environ={}), [])
+        with self.assertRaises(ConfigurationError):
+            read_csv("HOSTS", required=True, environ={"HOSTS": ", ,"})
+
+    def test_ensure_private_directory_rejects_existing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_root:
+            file_path = Path(temporary_root) / "not-a-directory"
+            file_path.write_text("occupied", encoding="utf-8")
+
+            with self.assertRaises(ConfigurationError):
+                ensure_private_directory(file_path)
 
 
 @override_settings(ROOT_URLCONF="pms.urls", ALLOWED_HOSTS=["testserver"])
@@ -76,11 +111,7 @@ assert local.CSRF_COOKIE_SECURE is False
         result = subprocess.run(
             [sys.executable, "-c", assertions],
             cwd=self.project_root,
-            env={
-                name: value
-                for name, value in os.environ.items()
-                if not name.startswith("PMS_")
-            },
+            env={name: value for name, value in os.environ.items() if not name.startswith("PMS_")},
             capture_output=True,
             text=True,
             check=False,

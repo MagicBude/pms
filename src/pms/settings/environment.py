@@ -13,9 +13,7 @@ class ConfigurationError(ValueError):
     """表示配置缺失、格式错误或组合不安全。"""
 
 
-def read_bool(
-    name: str, *, default: bool, environ: Mapping[str, str] = os.environ
-) -> bool:
+def read_bool(name: str, *, default: bool, environ: Mapping[str, str] = os.environ) -> bool:
     """读取严格布尔值，拒绝容易误解的拼写。"""
     raw_value = environ.get(name)
     if raw_value is None:
@@ -37,9 +35,7 @@ def require(name: str, *, environ: Mapping[str, str] = os.environ) -> str:
     return value
 
 
-def read_csv(
-    name: str, *, required: bool, environ: Mapping[str, str] = os.environ
-) -> list[str]:
+def read_csv(name: str, *, required: bool, environ: Mapping[str, str] = os.environ) -> list[str]:
     """把逗号分隔配置规范化为非空条目列表。"""
     raw_value = require(name, environ=environ) if required else environ.get(name, "")
     values = [item.strip() for item in raw_value.split(",") if item.strip()]
