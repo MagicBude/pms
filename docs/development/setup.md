@@ -105,7 +105,10 @@ F-004 起允许执行正式迁移。本机开发从空库初始化：
 uv run python manage.py migrate --noinput
 ```
 
-当前迁移会建立 Django 权限、内容类型、会话和 PMS 自有 `identity_user` 表，不会创建默认 `auth_user`。重复执行应显示 `No migrations to apply`。不要手工修改 SQLite 结构；模型变化必须生成、审查并提交迁移。
+当前迁移会建立 Django 权限、内容类型、会话，以及 PMS 自有 identity、tenancy、
+authorization 和 audit 表，不会创建默认 `auth_user`。F-009 以前只建立结构，不自动写入
+默认租户、管理员或角色权限数据。重复执行应显示 `No migrations to apply`。不要手工修改
+SQLite 结构；模型变化必须生成、审查并提交迁移。
 
 ## 8. 更新依赖
 

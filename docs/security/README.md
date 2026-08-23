@@ -22,3 +22,4 @@
 
 - [身份与认证基线](identity-authentication.md)：自有用户、登录标识、密码、会话和首次迁移边界。
 - [租户隔离基线](tenant-isolation-baseline.md)：tenant、membership、可信上下文和数据库防线。
+- [权限与审计基线](authorization-audit-baseline.md)：稳定权限、对象范围、默认拒绝和追加式审计。

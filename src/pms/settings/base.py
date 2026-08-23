@@ -10,14 +10,16 @@ SECRET_KEY = require("PMS_SECRET_KEY")
 DEBUG = False
 ALLOWED_HOSTS: list[str] = []
 
-# F-004 创建自有用户模型以前不能启用 auth、sessions 或 admin，避免默认
-# 用户表进入迁移历史。当前中间件也不依赖数据库或会话。
+# 自有用户必须先于其他业务迁移存在；所有外键都通过 AUTH_USER_MODEL 引用，
+# 禁止重新引入默认 auth_user，否则会破坏既有身份、租户和审计迁移历史。
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "pms.identity.apps.IdentityConfig",
     "pms.tenancy.apps.TenancyConfig",
+    "pms.authorization.apps.AuthorizationConfig",
+    "pms.audit.apps.AuditConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

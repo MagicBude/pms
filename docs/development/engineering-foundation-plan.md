@@ -314,6 +314,8 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-006：建立权限与审计基础
 
+实施状态：本地候选完成（2026-08-23，等待 PostgreSQL 18 CI）
+
 建议提交：`feat(authorization): 建立权限策略与审计边界`
 
 主要内容：
