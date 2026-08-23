@@ -41,3 +41,6 @@ F-010 已建立[本机备份与恢复](local-backup-restore.md)候选基线，�
 
 F-011 已建立[本机正式启动器](local-launcher.md)候选基线，说明 local 前置检查、Uvicorn
 单 worker、数据目录实例锁、ready 等待和默认浏览器行为。
+
+Phase 2 已建立[本机版本升级与回退](local-upgrade.md)基线，要求先验证备份、只向前迁移、在空目录
+恢复回退，并用旧代码验证恢复副本。

@@ -36,8 +36,9 @@ uv run python manage.py check
 uv run python manage.py runserver 127.0.0.1:8000
 ```
 
-浏览器访问 `http://127.0.0.1:8000/health/ready`，预期返回 `status: ready`。根路径当前仍是
-工程状态页；正式可交互业务界面将在 `SLICE-001` 实现。
+浏览器访问 `http://127.0.0.1:8000/health/ready`，预期返回 `status: ready`；访问根路径会转到
+本机工作台登录页。正式使用建议改用[本机启动器](../deployment/local-launcher.md)，而不是开发用
+`runserver`。
 
 不要把真实密码直接写在命令行参数、脚本、聊天记录或仓库文件中。PowerShell 环境变量只对子进程
 及当前终端会话可见，上述 `finally` 会在成功或失败后清除它；部署平台应改用受控秘密注入机制。

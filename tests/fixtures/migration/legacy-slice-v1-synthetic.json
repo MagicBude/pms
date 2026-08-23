@@ -1,0 +1,91 @@
+{
+  "accepted_differences": [],
+  "bom": {
+    "rows": [
+      {
+        "brand": "虚构品牌",
+        "material_code": "MAT-MIG-001",
+        "material_name": "虚构脱敏电机",
+        "quantity_per_unit": "2.000000",
+        "remark": "技术样例，不对应真实企业",
+        "specification": "220V",
+        "unit_code": "PCS"
+      },
+      {
+        "brand": "",
+        "material_code": "MAT-MIG-002",
+        "material_name": "虚构自制支架",
+        "quantity_per_unit": "5.000000",
+        "remark": "明确不进入生产请购",
+        "specification": "教学型",
+        "unit_code": "PCS"
+      }
+    ],
+    "version_number": 1
+  },
+  "legacy_purchase_candidates": [
+    {
+      "material_code": "MAT-MIG-001",
+      "requested_quantity": "6.000000",
+      "source_row_number": 2,
+      "unit_code": "PCS"
+    }
+  ],
+  "master_data": {
+    "categories": [
+      {
+        "code": "MIG",
+        "name": "虚构迁移分类"
+      }
+    ],
+    "customer": {
+      "code": "CUS-MIG",
+      "name": "虚构脱敏客户"
+    },
+    "materials": [
+      {
+        "brand": "虚构品牌",
+        "category_code": "MIG",
+        "code": "MAT-MIG-001",
+        "name": "虚构脱敏电机",
+        "procurement_required": true,
+        "specification": "220V",
+        "unit_code": "PCS"
+      },
+      {
+        "brand": "",
+        "category_code": "MIG",
+        "code": "MAT-MIG-002",
+        "name": "虚构自制支架",
+        "procurement_required": false,
+        "specification": "教学型",
+        "unit_code": "PCS"
+      }
+    ],
+    "units": [
+      {
+        "code": "PCS",
+        "name": "件"
+      }
+    ]
+  },
+  "production": {
+    "production_unit": "台",
+    "production_units": 3,
+    "receiving_department": "虚构装配部"
+  },
+  "project": {
+    "customer_code": "CUS-MIG",
+    "device_model": "虚构教学设备",
+    "owner_username": "admin",
+    "planned_completion_date": "2026-09-30",
+    "start_date": "2026-08-24",
+    "number": "MIG-2026-001"
+  },
+  "sample": {
+    "confirmed_by": null,
+    "id": "synthetic-slice-001",
+    "kind": "synthetic"
+  },
+  "schema_version": "pms-legacy-slice-v1"
+}

@@ -23,6 +23,14 @@ from pms.authorization.domain.permissions import PermissionCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.bom.application.service import ImportBomCommand
 from pms.master_data.application.service import CreateMaterialCommand
+from pms.platform.business_services import (
+    attachment_service,
+    bom_service,
+    master_data_service,
+    procurement_service,
+    production_service,
+    project_service,
+)
 from pms.production.application.service import CreateProductionCommand
 from pms.projects.application.service import CreateProjectCommand
 from pms.tenancy.application.resolve_context import TenantContextUnavailableError
@@ -39,14 +47,6 @@ from pms.web.forms import (
     MaterialForm,
     ProductionForm,
     ProjectForm,
-)
-from pms.web.services import (
-    attachment_service,
-    bom_service,
-    master_data_service,
-    procurement_service,
-    production_service,
-    project_service,
 )
 
 EXPECTED_USER_ERRORS = (ValueError, LookupError, PermissionError)

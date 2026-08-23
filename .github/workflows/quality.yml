@@ -68,6 +68,10 @@ jobs:
           uv run python manage.py initialize_pms --no-color
           unset PMS_INITIAL_ADMIN_PASSWORD
           uv run python manage.py initialize_pms --no-color
+          migration_report="${RUNNER_TEMP}/pms-legacy-slice-report-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"
+          uv run python manage.py migrate_legacy_slice \
+            --input tests/fixtures/migration/legacy-slice-v1-synthetic.json \
+            --report "${migration_report}"
           uv run python manage.py check
           log_file="${RUNNER_TEMP}/pms-local-smoke.log"
           uv run python manage.py launch_local --no-browser > "${log_file}" 2>&1 &

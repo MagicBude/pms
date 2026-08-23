@@ -7,6 +7,8 @@
 - [旧功能到新功能追踪矩阵](legacy-to-new-traceability.md)：功能、规则、设计、迁移和验收的统一入口。
 - [旧系统功能清单](../product/legacy-feature-inventory.md)：第一轮静态提取结果。
 - [业务规则基线](../product/business-rules.md)：已确认、推断和建议规则。
+- [数据迁移总策略](data-migration-strategy.md)：只读提取、受控包、幂等、对账和签收规则。
+- [SLICE-001 受控迁移](slice-001-controlled-migration.md)：首切片 JSON 契约、命令和报告口径。
 
 ## 迁移对象
 
