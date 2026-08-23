@@ -35,7 +35,7 @@
 - [ ] 完善模块化单体工程骨架。
 - [x] F-003：配置格式化、Lint、类型检查、测试、覆盖率、导入边界和 CI。
 - [x] F-004：建立自有用户与认证基础，完成 SQLite/PostgreSQL 18 首次迁移验证。
-- [ ] F-005：tenant、membership 和 SQLite 验证已完成，等待 PostgreSQL 18 CI。
+- [x] F-005：建立 tenant、membership 和可信租户上下文，完成双数据库验证。
 - [ ] 建立配置、日志、健康检查和数据库迁移。
 - [ ] 建立 tenant、user、membership、role、audit 基础能力。
 - [ ] 建立本机初始化、备份和恢复能力。
