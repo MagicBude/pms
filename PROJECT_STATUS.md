@@ -5,7 +5,7 @@
 - 最后更新：2026-08-23
 - 当前阶段：Phase 1（工程基础）
 - 当前结论：Phase 0 已通过退出审查；尚未开始业务编码，旧系统保持只读
-- 下一里程碑：推送 F-004 候选提交并确认 PostgreSQL 18 CI
+- 下一里程碑：完成 F-005 tenant、membership 与可信租户上下文
 
 ## 已完成
 
@@ -31,7 +31,7 @@
 - [x] 完成 F-001：安装 uv 与 CPython 3.14.7，建立 Python 包、依赖分组、跨平台锁文件和依赖评审。
 - [x] 完成 F-002：建立最小 Django ASGI、URL、四套配置档案和启动安全测试。
 - [x] 完成 F-003：建立 Ruff、mypy、pytest、80% 覆盖率、导入边界和 GitHub Actions 门槛。
-- [x] 完成 F-004 本地实现：自有 UUIDv7 用户、用户名/密码认证、会话和首次 SQLite 迁移。
+- [x] 完成 F-004：自有 UUIDv7 用户、认证与会话基础，以及 SQLite/PostgreSQL 18 首次迁移验证。
 
 ## 正在进行
 
@@ -41,9 +41,9 @@
 
 ## 下一步
 
-1. 提交并推送 F-004 候选基线，触发 GitHub Actions 的 PostgreSQL 18 迁移与身份测试。
-2. CI 通过后把 F-004 标记为完成，再进入 F-005 tenant 与 membership。
-3. CI 未通过时先修复同一 F-004 范围，不提前进入 F-005。
+1. 执行 F-005：建立 tenant、membership 与显式 `TenantContext`。
+2. 验证成员关系唯一性、停用边界以及客户端无法伪造 tenant。
+3. 同一迁移和关键集成测试继续覆盖 SQLite 与 PostgreSQL 18。
 
 ## 当前阻塞与待决策
 
@@ -65,7 +65,7 @@
 - 修复 F-002 首次启动未创建 `PMS_DATA_DIR` 导致 SQLite 无法打开的问题；空库保持无用户表和业务表。
 - F-003 本地质量链通过：Ruff、mypy、14 个 pytest、90.20% 分支覆盖率、Django checks 和依赖审计。
 - F-004 已从空 SQLite 完成两次迁移验证：第一次成功，第二次无漂移；存在 `identity_user` 且不存在 `auth_user`。
-- 本机没有 Docker 或 PostgreSQL 服务，F-004 的 PostgreSQL 18 验证等待候选提交推送后的 GitHub Actions，当前不得标记为全部完成。
+- 用户确认 F-004 GitHub Actions 为绿色；PostgreSQL 18 首次迁移和身份集成测试通过，F-004 正式完成。
 
 ## 接续入口
 

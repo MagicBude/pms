@@ -273,7 +273,7 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-004：建立自有用户模型
 
-实施状态：待 PostgreSQL 18 远端验证（2026-08-23）
+实施状态：已完成（2026-08-23，SQLite 本地与 PostgreSQL 18 CI）
 
 建议提交：`feat(identity): 建立自有用户与认证基础`
 
