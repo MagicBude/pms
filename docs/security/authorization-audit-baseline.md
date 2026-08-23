@@ -1,6 +1,6 @@
 # 权限与审计基线
 
-状态：F-006 本地候选基线，等待 PostgreSQL 18 CI 验证
+状态：已验证（SQLite 本地与 PostgreSQL 18 CI）
 
 ## 1. 目的与边界
 
