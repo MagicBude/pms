@@ -25,6 +25,7 @@
 | Ruff | dev | F-003 格式化和 Lint | Black + isort + Flake8 工具更多、规则易漂移 | F-001 只锁定；F-003 固定规则并执行 | MIT |
 | mypy | dev | 静态检查领域、应用和公共边界 | Pyright 可行，但会增加另一套配置和 Node/独立工具管理 | 动态 Django 边界需插件或封装；不能用大量 ignore 制造假通过 | MIT |
 | django-stubs | dev | 为 Django 提供 mypy 类型信息和插件 | 手写框架 stub 维护成本高 | 与 Django 5.2 和 mypy 锁版本共同验证；插件只服务类型检查 | MIT |
+| types-openpyxl | dev | 为 BOM 解析边界提供 openpyxl 静态类型声明 | 手写 stub 容易漏掉只读单元格和工作簿 API；放弃检查会在不可信文件边界形成盲区 | 只进入开发组，不参与运行；版本随 openpyxl API 兼容性复核 | Apache-2.0 |
 | pytest | test | 单元、集成和验收测试运行器 | unittest 属于标准库，但 fixture、标记和插件生态不如 pytest 适合计划矩阵 | F-003 注册标记并启用严格模式 | MIT |
 | pytest-django | test | Django 测试设置和数据库生命周期 | 手工引导 Django 容易产生重复样板和隔离错误 | 数据库标记必须显式；不能让普通单元测试意外访问数据库 | BSD-3-Clause |
 | pytest-cov | test | 覆盖率遗漏分析 | coverage.py 直接调用可行，插件减少 pytest 集成样板 | 覆盖率不替代业务场景；高风险边界关注分支而非总百分比 | MIT |
@@ -76,6 +77,7 @@
 | pytest-django | 4.14.0 |
 | pytest-cov | 7.1.0 |
 | pip-audit | 2.10.1 |
+| types-openpyxl | 3.1.5.20260807 |
 
 ### 6.2 导入和构建
 

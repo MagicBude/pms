@@ -39,6 +39,12 @@ class ProjectTransactionManager(Protocol):
     def atomic(self) -> AbstractContextManager[None]: ...
 
 
+class ProjectDownstreamLookup(Protocol):
+    """查询项目是否已形成不能被取消隐藏的下游历史。"""
+
+    def has_records(self, *, tenant_id: UUID, project_id: UUID) -> bool: ...
+
+
 @dataclass(frozen=True, slots=True)
 class CreateProjectCommand:
     """创建项目的用户输入；tenant 和初始状态不允许由客户端提供。"""
@@ -62,7 +68,6 @@ class ProjectSnapshot:
     device_model: str
     owner_membership_id: UUID
     status: ProjectStatus
-    has_downstream_records: bool = False
 
 
 class ProjectRepository(Protocol):
@@ -98,11 +103,13 @@ class ProjectService:
         grants: PermissionGrantLookup,
         audit: AuditRecorder,
         transactions: ProjectTransactionManager,
+        downstream: ProjectDownstreamLookup,
     ) -> None:
         self._repository = repository
         self._grants = grants
         self._audit = audit
         self._transactions = transactions
+        self._downstream = downstream
 
     def create_project(
         self, *, context: TenantContext, command: CreateProjectCommand
@@ -159,16 +166,30 @@ class ProjectService:
 
     def cancel_project(self, *, context: TenantContext, project_id: UUID) -> ProjectSnapshot:
         """取消无下游记录的草稿或活动项目。"""
-        return self._transition(
-            context=context,
-            project_id=project_id,
-            permission=PermissionCode.PROJECT_CANCEL,
-            action="project.cancelled",
-            decide=lambda project: cancel_project(
+        with self._transactions.atomic():
+            project = self._repository.get_for_update(
+                tenant_id=context.tenant_id, project_id=project_id
+            )
+            if project is None:
+                raise ProjectNotFoundError("当前租户中不存在该项目。")
+            self._authorize(
+                context=context,
+                permission=PermissionCode.PROJECT_CANCEL,
+                is_related=project.owner_membership_id == context.membership_id,
+            )
+            target_status = cancel_project(
                 project.status,
-                has_downstream_records=project.has_downstream_records,
-            ),
-        )
+                has_downstream_records=self._downstream.has_records(
+                    tenant_id=context.tenant_id, project_id=project.id
+                ),
+            )
+            updated = self._repository.set_status(
+                tenant_id=context.tenant_id,
+                project_id=project.id,
+                status=target_status,
+            )
+            self._record(context=context, action="project.cancelled", project=updated)
+        return updated
 
     def _transition(
         self,

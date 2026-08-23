@@ -12,6 +12,7 @@ from pms.authorization.application.authorize import PermissionDeniedError
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.authorization.infrastructure.django.models import MembershipRole, Role
+from pms.bom.infrastructure.django.repository import DjangoBomProjectDownstreamLookup
 from pms.master_data.application.service import CreateMaterialCommand, MasterDataService
 from pms.master_data.domain.values import DuplicateMasterDataError
 from pms.master_data.infrastructure.django.models import Customer, Material
@@ -65,6 +66,7 @@ def project_service() -> ProjectService:
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),
         transactions=DjangoProjectTransactionManager(),
+        downstream=DjangoBomProjectDownstreamLookup(),
     )
 
 

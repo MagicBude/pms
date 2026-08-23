@@ -90,8 +90,6 @@ class DjangoProjectRepository:
 
     @staticmethod
     def _snapshot(project: Project) -> ProjectSnapshot:
-        # BOM 模块建立前不存在下游表；P2-02 会把该事实替换为本模块拥有的
-        # 查询端口组合结果，并增加“已有下游不能取消”的集成测试。
         return ProjectSnapshot(
             id=project.id,
             tenant_id=project.tenant_id,
@@ -100,5 +98,4 @@ class DjangoProjectRepository:
             device_model=project.device_model,
             owner_membership_id=project.owner_membership_id,
             status=ProjectStatus(project.status),
-            has_downstream_records=False,
         )
