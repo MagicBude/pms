@@ -70,8 +70,7 @@ jobs:
           uv run python manage.py initialize_pms --no-color
           uv run python manage.py check
           log_file="${RUNNER_TEMP}/pms-local-smoke.log"
-          uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000 \
-            > "${log_file}" 2>&1 &
+          uv run python manage.py launch_local --no-browser > "${log_file}" 2>&1 &
           server_pid=$!
           trap 'kill "${server_pid}" 2>/dev/null || true' EXIT
           ready=0
@@ -84,6 +83,15 @@ jobs:
           done
           if [ "${ready}" -ne 1 ]; then
             cat "${log_file}"
+            exit 1
+          fi
+          duplicate_log="${RUNNER_TEMP}/pms-local-duplicate.log"
+          if uv run python manage.py launch_local --no-browser > "${duplicate_log}" 2>&1; then
+            echo "Duplicate local launcher unexpectedly succeeded."
+            exit 1
+          fi
+          if ! grep -q "已经有本机服务" "${duplicate_log}"; then
+            cat "${duplicate_log}"
             exit 1
           fi
           kill "${server_pid}" 2>/dev/null || true
@@ -108,7 +116,7 @@ jobs:
           export PMS_DATA_DIR="${restored_data}"
           uv run python manage.py check
           restored_log_file="${RUNNER_TEMP}/pms-local-restored-smoke.log"
-          uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000 \
+          uv run python manage.py launch_local --no-browser \
             > "${restored_log_file}" 2>&1 &
           restored_server_pid=$!
           trap 'kill "${restored_server_pid}" 2>/dev/null || true' EXIT

@@ -17,6 +17,7 @@ from pms.settings.environment import (
     ensure_private_directory,
     read_bool,
     read_csv,
+    read_int,
     require,
 )
 
@@ -34,6 +35,38 @@ class EnvironmentParsingTests(unittest.TestCase):
         self.assertTrue(read_bool("FLAG", default=False, environ={"FLAG": "YES"}))
         self.assertFalse(read_bool("FLAG", default=True, environ={"FLAG": "off"}))
         self.assertTrue(read_bool("FLAG", default=True, environ={}))
+
+    def test_read_int_accepts_range_and_rejects_invalid_values(self) -> None:
+        self.assertEqual(
+            read_int("PORT", default=8000, minimum=1024, maximum=65535, environ={}),
+            8000,
+        )
+        self.assertEqual(
+            read_int(
+                "PORT",
+                default=8000,
+                minimum=1024,
+                maximum=65535,
+                environ={"PORT": " 8765 "},
+            ),
+            8765,
+        )
+        with self.assertRaisesRegex(ConfigurationError, "十进制整数"):
+            read_int(
+                "PORT",
+                default=8000,
+                minimum=1024,
+                maximum=65535,
+                environ={"PORT": "8.5"},
+            )
+        with self.assertRaisesRegex(ConfigurationError, "1024 至 65535"):
+            read_int(
+                "PORT",
+                default=8000,
+                minimum=1024,
+                maximum=65535,
+                environ={"PORT": "80"},
+            )
 
     def test_require_rejects_missing_value_without_echoing_a_secret(self) -> None:
         with self.assertRaisesRegex(ConfigurationError, "PMS_SECRET_KEY"):
@@ -99,11 +132,25 @@ class ProfileStartupTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("必须是 loopback", result.stderr)
 
+    def test_local_rejects_invalid_bind_port_and_startup_timeout(self) -> None:
+        invalid_port = self.import_profile("local", {"PMS_BIND_PORT": "80"})
+        invalid_timeout = self.import_profile(
+            "local",
+            {"PMS_STARTUP_TIMEOUT_SECONDS": "121"},
+        )
+
+        self.assertNotEqual(invalid_port.returncode, 0)
+        self.assertIn("1024 至 65535", invalid_port.stderr)
+        self.assertNotEqual(invalid_timeout.returncode, 0)
+        self.assertIn("1 至 120", invalid_timeout.stderr)
+
     def test_local_defaults_are_loopback_only_and_debug_off(self) -> None:
         assertions = """
 from pms.settings import local
 assert local.DEBUG is False
 assert local.BIND_HOST == "127.0.0.1"
+assert local.BIND_PORT == 8000
+assert local.STARTUP_TIMEOUT_SECONDS == 30
 assert set(local.ALLOWED_HOSTS) == {"127.0.0.1", "localhost", "[::1]"}
 assert local.SESSION_COOKIE_SECURE is False
 assert local.CSRF_COOKIE_SECURE is False

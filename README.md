@@ -19,7 +19,7 @@ uv python install 3.14.7
 uv sync --locked --all-groups
 ```
 
-完整说明见 [开发环境搭建](docs/development/setup.md)和 [F-001 依赖评审](docs/development/dependency-review.md)。F-002 已提供可启动的最小 ASGI 入口；根路径只显示工程状态，正式业务界面将在 `SLICE-001` 实现。
+完整说明见 [开发环境搭建](docs/development/setup.md)和 [F-001 依赖评审](docs/development/dependency-review.md)。F-011 已提供经过前置检查和 ready 等待的[本机正式启动器](docs/deployment/local-launcher.md)；根路径仍只显示工程状态，正式业务界面将在 `SLICE-001` 实现。
 
 ## 阅读顺序
 

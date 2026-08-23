@@ -4,6 +4,54 @@
 
 本文件记录执行事实和验证结果，不替代 Git 历史、变更记录或产品决策。新记录放在最上方；不要改写历史结论，如需纠正应新增一条说明。
 
+## 2026-08-23：关闭 F-010 并建立 F-011 本机正式启动器候选
+
+### 完成
+
+- 核实提交 `14e689c` 对应 GitHub `Quality` 运行 `32648596251` 已完成且结论为
+  `success`；本机备份、恢复、恢复目录启动和 PostgreSQL 18 回归全部通过，F-010 正式关闭。
+- 新增 `launch_local` 管理命令，从 local settings 统一取得 loopback 地址、受控端口、数据目录
+  和 ready 超时，在当前进程中运行 Uvicorn 单 worker，禁用 reload。
+- 启动前验证 `local + SQLite`、关闭 DEBUG、迁移完整、附件可写和至少一个活动租户管理员；不
+  自动迁移或初始化，避免启动动作隐式修改数据或读取临时密码。
+- 为同一数据目录建立跨平台操作系统排他锁：Windows 使用 byte-range lock，POSIX 使用
+  `flock`；锁文件只记录不含路径和秘密的诊断元数据，进程退出后内核自动释放。
+- 在独立线程轮询 loopback ready，成功后默认浏览器只打开一次；超时请求 Uvicorn 安全退出，
+  浏览器打开失败时保留服务并给出手动地址。
+- 新增 `PMS_BIND_PORT` 和 `PMS_STARTUP_TIMEOUT_SECONDS` 严格整数配置，并同步环境变量样例、
+  配置说明、本机启动手册、开发入口和根 README。
+- GitHub `Quality` 的本机烟雾步骤改用正式启动器，验证 Linux 实例锁拒绝第二启动器，并使用
+  启动器复验恢复数据目录。
+
+### 判断
+
+- 采用同进程 Uvicorn 而不是父启动器派生子进程，避免父进程被关闭后遗留孤儿服务和锁失配。
+- 互斥事实由内核锁而非锁文件存在性表达；锁文件故意保留，释放后删除会在 POSIX 引入 inode
+  竞态并允许两个实例同时持有不同文件。
+- `--no-browser` 只服务 CI 和无图形环境，不能绕过迁移、初始化、端口、锁或 ready 检查。
+- F-011 是源码级跨平台入口；桌面快捷方式、安装包、系统托盘和内置 Python 运行时仍属后续
+  交付包装，不阻塞 Phase 1 的启动器门槛。
+
+### 验证
+
+- Ruff format、Ruff Lint、严格 mypy、Django checks、迁移漂移、uv 锁文件和 Markdown 本地
+  链接检查通过。
+- 127 个 pytest 全部通过，分支覆盖率 85.07%。
+- 30 项直接相关测试覆盖端口与超时配置、IPv4/IPv6 URL、Windows 实例锁重入与释放、端口
+  占用、待迁移、未初始化、DEBUG、非 local、ready 超时、浏览器失败/禁用/只打开一次和
+  Uvicorn 就绪前退出。
+- 在 F-010 真实恢复目录上以端口 8891 运行 `launch_local --no-browser`，ready 返回 200，
+  database、migrations、attachment_storage 全部 `ok`；第二实例安全返回非零。
+- 首次真实 `Ctrl+C` 发现 Python 3.14 在 Uvicorn 已 shutdown 后仍上抛 `KeyboardInterrupt`；
+  增加正常停止收敛和回归测试后重跑，终端只输出“本机 PMS 已停止”，随后同端口可重新启动。
+- pip-audit 首次访问 PyPI 时遇到 TLS 连接提前断开；未把网络失败写成审计通过，随后重新执行
+  成功且未发现已知漏洞，可编辑本项目按预期跳过。
+
+### 下一动作
+
+- 创建 F-011 候选提交，由用户推送并确认 GitHub `Quality` 绿色。
+- 远端关闭 F-011 后执行 F-012 Phase 1 最终退出审查与另一空目录复验。
+
 ## 2026-08-23：建立 F-010 本机备份与恢复候选基线
 
 ### 完成

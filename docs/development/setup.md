@@ -1,6 +1,6 @@
 # 开发环境搭建
 
-状态：F-010 本地候选基线
+状态：F-011 本地候选基线
 
 ## 1. 当前能力
 
@@ -46,7 +46,7 @@ uv run python manage.py runserver 127.0.0.1:8000
 
 浏览器访问 `http://127.0.0.1:8000/`，应看到“PMS 工程基础已启动”的文本提示。首次启动
 会自动创建被 Git 忽略的本机数据目录、`attachments/` 私有子目录和 SQLite 文件。开发
-服务器只用于开发；本机交付将使用 Uvicorn 和后续启动器。
+服务器只用于开发；本机交付使用下文的正式启动器。
 
 验证 ASGI 正式入口可执行：
 
@@ -54,7 +54,15 @@ uv run python manage.py runserver 127.0.0.1:8000
 uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000
 ```
 
-`local` 档案会拒绝 `PMS_BIND_HOST=0.0.0.0` 等非 loopback 配置。启动命令的 `--host` 必须与 `PMS_BIND_HOST` 保持一致；当前尚未建立自动拼装参数的启动器。
+`local` 档案会拒绝 `PMS_BIND_HOST=0.0.0.0` 等非 loopback 配置。直接运行 Uvicorn 只用于
+验证 ASGI 入口；日常本机正式启动应执行：
+
+```powershell
+uv run python manage.py launch_local
+```
+
+该命令从 settings 取得受控地址和端口，检查迁移、初始化、附件存储与重复实例，ready 后才
+打开浏览器。完整说明见[本机正式启动器](../deployment/local-launcher.md)。
 
 ## 5. 验证
 

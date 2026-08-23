@@ -19,12 +19,20 @@ from pms.settings.environment import (
     ConfigurationError,
     ensure_private_directory,
     read_bool,
+    read_int,
 )
 
 DEPLOYMENT_PROFILE = "local"
 DEBUG = read_bool("PMS_DEBUG", default=False)
 LOGGING = build_logging_config(app_level="DEBUG" if DEBUG else "INFO")
 BIND_HOST = os.environ.get("PMS_BIND_HOST", "127.0.0.1").strip()
+BIND_PORT = read_int("PMS_BIND_PORT", default=8000, minimum=1024, maximum=65535)
+STARTUP_TIMEOUT_SECONDS = read_int(
+    "PMS_STARTUP_TIMEOUT_SECONDS",
+    default=30,
+    minimum=1,
+    maximum=120,
+)
 
 try:
     if not ipaddress.ip_address(BIND_HOST).is_loopback:

@@ -27,6 +27,27 @@ def read_bool(name: str, *, default: bool, environ: Mapping[str, str] = os.envir
     raise ConfigurationError(f"{name} 必须是 true/false、yes/no、on/off 或 1/0。")
 
 
+def read_int(
+    name: str,
+    *,
+    default: int,
+    minimum: int,
+    maximum: int,
+    environ: Mapping[str, str] = os.environ,
+) -> int:
+    """读取有闭区间约束的十进制整数，不接受布尔值或模糊格式。"""
+    raw_value = environ.get(name)
+    if raw_value is None:
+        return default
+    try:
+        value = int(raw_value.strip(), base=10)
+    except ValueError as error:
+        raise ConfigurationError(f"{name} 必须是十进制整数。") from error
+    if not minimum <= value <= maximum:
+        raise ConfigurationError(f"{name} 必须在 {minimum} 至 {maximum} 之间。")
+    return value
+
+
 def require(name: str, *, environ: Mapping[str, str] = os.environ) -> str:
     """读取必填值，但不把可能的秘密写入异常消息。"""
     value = environ.get(name, "").strip()

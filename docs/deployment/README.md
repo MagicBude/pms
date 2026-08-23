@@ -38,3 +38,6 @@ F-008 已建立并验证[附件元数据与本地存储](attachment-storage.md)�
 
 F-010 已建立[本机备份与恢复](local-backup-restore.md)候选基线，说明 SQLite 与附件一致性
 备份集、离线完整性校验和不覆盖原数据的空目录恢复流程。
+
+F-011 已建立[本机正式启动器](local-launcher.md)候选基线，说明 local 前置检查、Uvicorn
+单 worker、数据目录实例锁、ready 等待和默认浏览器行为。
