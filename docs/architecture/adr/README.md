@@ -2,14 +2,14 @@
 
 状态：持续维护
 
-ADR 记录不可轻易逆转或影响多个模块的技术决定。状态为“提议”的 ADR 不能作为创建工程骨架的最终授权；评审接受后才能实施。
+ADR 记录不可轻易逆转或影响多个模块的技术决定。状态为“提议”的 ADR 不能作为创建工程骨架的最终授权；“已接受”的 ADR 是后续实现约束。
 
 | ADR | 状态 | 决策主题 |
 | --- | --- | --- |
-| [ADR-0001](ADR-0001-technology-stack-and-modular-monolith.md) | 提议 | Python、Django、服务端渲染和模块化单体 |
-| [ADR-0002](ADR-0002-database-and-multi-tenancy.md) | 提议 | SQLite/PostgreSQL、共享表多租户和事务 |
-| [ADR-0003](ADR-0003-attachment-storage.md) | 提议 | 附件元数据、存储适配器和上传安全 |
-| [ADR-0004](ADR-0004-deployment-profiles.md) | 提议 | 本机、内网和云端部署形态 |
+| [ADR-0001](ADR-0001-technology-stack-and-modular-monolith.md) | 已接受 | Python、Django、服务端渲染和模块化单体 |
+| [ADR-0002](ADR-0002-database-and-multi-tenancy.md) | 已接受 | SQLite/PostgreSQL、共享表多租户和事务 |
+| [ADR-0003](ADR-0003-attachment-storage.md) | 已接受 | 附件元数据、存储适配器和上传安全 |
+| [ADR-0004](ADR-0004-deployment-profiles.md) | 已接受 | 本机、内网和云端部署形态 |
 
 ## 状态规则
 

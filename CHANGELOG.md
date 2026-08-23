@@ -18,6 +18,8 @@
 ### Changed
 
 - 将原 Excel/VBA 项目整体迁入 `.internal/legacy-pms/`，从新系统仓库内容中隔离。
+- 接受 `ADR-0001` 至 `ADR-0004`，将技术栈、数据库、多租户、附件和部署方案确立为实施约束。
+- 扩展 Git 提交规范，增加 PMS scope、结构化正文、提交模板和验证记录要求。
 
 ### Security
 

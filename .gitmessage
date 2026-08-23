@@ -1,0 +1,22 @@
+# <type>(<scope>): <中文祈使句主题，不加句号>
+
+# 动机：
+# - 为什么需要这次变更
+
+# 主要变更：
+# - 做了什么，以及关键实现方式
+
+# 验证：
+# - 实际运行的检查及结果
+
+# 影响：
+# - 对使用者、数据、兼容性、部署或后续工作的影响
+
+# 关联：
+# Refs #123
+# BREAKING CHANGE: 如有不兼容变更，在此说明迁移方式
+
+# 常用类型：feat fix docs style refactor perf test build ci chore revert
+# PMS scope：product architecture deployment development standard migration
+#            security tenancy identity authorization audit master-data projects
+#            attachments bom production procurement platform repo

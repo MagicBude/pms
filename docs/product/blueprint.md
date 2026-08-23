@@ -296,17 +296,22 @@ Infrastructure: SQLite/PostgreSQL, files/object storage, email, licensing
 
 执行状态不在本蓝图重复维护，统一查看根目录 [项目状态](../../PROJECT_STATUS.md) 和 [项目路线图](../development/roadmap.md)。
 
-## 15. 待决策事项
+## 15. 已决策与待决策事项
 
-- 后端框架和版本；
-- 前端采用服务端渲染、渐进增强还是独立 SPA；
-- ORM、迁移工具和依赖管理工具；
+以下架构事项已经由 `ADR-0001` 至 `ADR-0004` 确认：
+
+- Python 3.14、Django 5.2 LTS、Django Templates 和 HTMX；
+- Django ORM、Django migrations 和 uv；
+- 本机 SQLite，内网与云端 PostgreSQL 18；
+- 共享数据库、共享 Schema、业务表显式 `tenant_id`；
+- 数据库附件元数据与可替换二进制存储适配器；
+- 本机、内网、云端共享业务代码并使用不同配置档案。
+
+仍待决策：
+
 - 本机启动器和桌面打包形式；
-- 用户认证与会话方案；
-- 内网阶段切换 PostgreSQL 的明确触发条件；
-- 云端租户隔离采用共享表、独立 schema 还是其他方式；
-- 附件本机目录结构和云端对象存储供应商；
-- 第一个端到端业务切片；
+- 本机安装包的 Python 运行时交付方式；
+- 附件本机数据目录和云端对象存储供应商；
 - 旧系统数据保留期限与脱敏策略；
 - 私有化许可证的设备绑定和离线策略。
 
