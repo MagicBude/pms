@@ -10,6 +10,7 @@ from django.core.management import call_command
 from django.test import Client
 
 from pms.attachments.infrastructure.django.models import Attachment
+from pms.audit.domain.events import AuditResult
 from pms.audit.infrastructure.django.models import AuditLog
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.models import MembershipRole, Role
@@ -21,7 +22,7 @@ from pms.production.domain.release import ProductionStatus
 from pms.production.infrastructure.django.models import ProductionRelease
 from pms.projects.domain.lifecycle import ProjectStatus
 from pms.projects.infrastructure.django.models import Project
-from pms.tenancy.infrastructure.django.models import Membership
+from pms.tenancy.infrastructure.django.models import Membership, Tenant
 from pms.web.context import SESSION_MEMBERSHIP_KEY
 from tests.integration.business.test_bom_workflow import make_workbook
 
@@ -169,6 +170,57 @@ def test_browser_workflow_reaches_submitted_purchase_request(
     bom = BomVersion.objects.get(project=project)
     assert import_response.headers["Location"] == f"/boms/{bom.id}/"
     assert client.get(f"/attachments/{bom.source_attachment_id}/download/").status_code == 200
+    assert AuditLog.objects.filter(
+        action="attachment.download",
+        object_id=str(bom.source_attachment_id),
+        result=AuditResult.SUCCESS,
+    ).exists()
+
+    manager_user = get_user_model().objects.create_user(
+        username="ui-project-manager", password="manager-Strong!2026"
+    )
+    manager_membership = Membership.objects.create(tenant=membership.tenant, user=manager_user)
+    MembershipRole.objects.create(
+        membership=manager_membership,
+        role=Role.objects.get(code=RoleCode.PROJECT_MANAGER),
+    )
+    manager_client = Client()
+    manager_client.force_login(manager_user)
+    manager_session = manager_client.session
+    manager_session[SESSION_MEMBERSHIP_KEY] = str(manager_membership.id)
+    manager_session.save()
+    assert manager_client.post(f"/boms/{bom.id}/publish/").status_code == 302
+    bom.refresh_from_db()
+    assert bom.status == "DRAFT"
+    assert AuditLog.objects.filter(
+        tenant=membership.tenant,
+        action="bom.publish",
+        object_id=str(bom.id),
+        result=AuditResult.DENIED,
+    ).exists()
+
+    other_tenant = Tenant.objects.create(code="ui-other", name="界面其他租户")
+    other_user = get_user_model().objects.create_user(
+        username="ui-other-admin", password="other-Strong!2026"
+    )
+    other_membership = Membership.objects.create(tenant=other_tenant, user=other_user)
+    MembershipRole.objects.create(
+        membership=other_membership,
+        role=Role.objects.get(code=RoleCode.TENANT_ADMIN),
+    )
+    other_client = Client()
+    other_client.force_login(other_user)
+    other_session = other_client.session
+    other_session[SESSION_MEMBERSHIP_KEY] = str(other_membership.id)
+    other_session.save()
+    assert other_client.get(f"/attachments/{bom.source_attachment_id}/download/").status_code == 404
+    assert AuditLog.objects.filter(
+        tenant=other_tenant,
+        action="attachment.download",
+        object_id=str(bom.source_attachment_id),
+        result=AuditResult.DENIED,
+    ).exists()
+
     client.post(f"/boms/{bom.id}/publish/")
     bom.refresh_from_db()
     assert bom.status == "PUBLISHED"
@@ -193,6 +245,19 @@ def test_browser_workflow_reaches_submitted_purchase_request(
     )
     purchase_request = PurchaseRequest.objects.get(production_release=production)
     assert request_response.headers["Location"] == f"/requests/{purchase_request.id}/"
+    assert (
+        client.post(
+            f"/production/{production.id}/requests/new/",
+            {"idempotency_key": "ui-conflicting-second-key"},
+        ).status_code
+        == 302
+    )
+    assert PurchaseRequest.objects.filter(production_release=production).count() == 1
+    assert AuditLog.objects.filter(
+        action="purchase_request.create",
+        object_id=str(production.id),
+        result=AuditResult.FAILURE,
+    ).exists()
     client.post(f"/requests/{purchase_request.id}/submit/")
     purchase_request.refresh_from_db()
     assert purchase_request.status == PurchaseRequestStatus.SUBMITTED

@@ -36,6 +36,7 @@ from pms.projects.application.service import CreateProjectCommand
 from pms.tenancy.application.resolve_context import TenantContextUnavailableError
 from pms.tenancy.domain.context import TenantContext
 from pms.web import queries
+from pms.web.audit import record_denied_access, record_expected_error, record_protected_read
 from pms.web.authentication import authenticate_local_user, record_logout
 from pms.web.context import SESSION_MEMBERSHIP_KEY, resolve_request_context
 from pms.web.forms import (
@@ -113,6 +114,13 @@ def customer_create_view(request: HttpRequest) -> HttpResponse:
                 name=str(form.cleaned_data["name"]),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="customer.create",
+                object_type="customer",
+                object_id=None,
+                error=error,
+            )
             form.add_error(None, str(error))
         else:
             messages.success(request, "客户已创建。")
@@ -149,6 +157,13 @@ def _simple_master_create(request: HttpRequest, *, kind: str, title: str) -> Htt
                     name=str(form.cleaned_data["name"]),
                 )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action=f"{kind}.create",
+                object_type=kind,
+                object_id=None,
+                error=error,
+            )
             form.add_error(None, str(error))
         else:
             messages.success(request, f"{title}已创建。")
@@ -194,6 +209,13 @@ def material_create_view(request: HttpRequest) -> HttpResponse:
                 ),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="material.create",
+                object_type="material",
+                object_id=None,
+                error=error,
+            )
             form.add_error(None, str(error))
         else:
             messages.success(request, "物料已创建。")
@@ -236,6 +258,13 @@ def project_create_view(request: HttpRequest) -> HttpResponse:
                 ),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="project.create",
+                object_type="project",
+                object_id=None,
+                error=error,
+            )
             form.add_error(None, str(error))
         else:
             messages.success(request, "项目草稿已创建。")
@@ -246,8 +275,15 @@ def project_create_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 @login_required
 def project_detail_view(request: HttpRequest, project_id: UUID) -> HttpResponse:
-    detail = queries.project_detail(_context(request), project_id)
+    context = _context(request)
+    detail = queries.project_detail(context, project_id)
     if detail is None:
+        record_denied_access(
+            context=context,
+            action="project.view",
+            object_type="project",
+            object_id=project_id,
+        )
         raise Http404
     return render(request, "web/project_detail.html", {"detail": detail})
 
@@ -267,6 +303,13 @@ def project_action_view(request: HttpRequest, project_id: UUID, action: str) -> 
         else:
             raise Http404
     except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action=f"project.{action}",
+            object_type="project",
+            object_id=project_id,
+            error=error,
+        )
         messages.error(request, str(error))
     else:
         messages.success(request, "项目状态已更新。")
@@ -295,6 +338,13 @@ def bom_import_view(request: HttpRequest, project_id: UUID) -> HttpResponse:
                 ),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="bom.import",
+                object_type="project",
+                object_id=project_id,
+                error=error,
+            )
             form.add_error(None, str(error))
         else:
             messages.success(request, f"BOM V{bom.version_number} 已导入为草稿。")
@@ -312,6 +362,12 @@ def bom_detail_view(request: HttpRequest, bom_id: UUID) -> HttpResponse:
     context = _context(request)
     detail = queries.bom_detail(context, bom_id)
     if detail is None:
+        record_denied_access(
+            context=context,
+            action="bom.view",
+            object_type="bom_version",
+            object_id=bom_id,
+        )
         raise Http404
     assignment_form = MaterialAssignmentForm(materials=queries.visible_material_options(context))
     return render(
@@ -324,9 +380,17 @@ def bom_detail_view(request: HttpRequest, bom_id: UUID) -> HttpResponse:
 @require_POST
 @login_required
 def bom_publish_view(request: HttpRequest, bom_id: UUID) -> HttpResponse:
+    context = _context(request)
     try:
-        bom_service().publish_bom(context=_context(request), bom_id=bom_id)
+        bom_service().publish_bom(context=context, bom_id=bom_id)
     except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action="bom.publish",
+            object_type="bom_version",
+            object_id=bom_id,
+            error=error,
+        )
         messages.error(request, str(error))
     else:
         messages.success(request, "BOM 已发布，历史版本不会被覆盖。")
@@ -347,6 +411,13 @@ def bom_assign_material_view(request: HttpRequest, bom_id: UUID, line_id: UUID) 
                 material_id=UUID(str(form.cleaned_data["material_id"])),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="bom.assign_material",
+                object_type="bom_version",
+                object_id=bom_id,
+                error=error,
+            )
             messages.error(request, str(error))
         else:
             messages.success(request, "BOM 行物料已确认。")
@@ -358,9 +429,17 @@ def bom_assign_material_view(request: HttpRequest, bom_id: UUID, line_id: UUID) 
 @require_POST
 @login_required
 def bom_confirm_duplicate_view(request: HttpRequest, bom_id: UUID, line_id: UUID) -> HttpResponse:
+    context = _context(request)
     try:
-        bom_service().confirm_duplicate(context=_context(request), bom_id=bom_id, line_id=line_id)
+        bom_service().confirm_duplicate(context=context, bom_id=bom_id, line_id=line_id)
     except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action="bom.confirm_duplicate",
+            object_type="bom_version",
+            object_id=bom_id,
+            error=error,
+        )
         messages.error(request, str(error))
     else:
         messages.success(request, "已确认保留该疑似重复行；数量没有自动合并。")
@@ -370,11 +449,12 @@ def bom_confirm_duplicate_view(request: HttpRequest, bom_id: UUID, line_id: UUID
 @require_http_methods(["GET", "POST"])
 @login_required
 def production_create_view(request: HttpRequest, project_id: UUID, bom_id: UUID) -> HttpResponse:
+    context = _context(request)
     form = ProductionForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
             production = production_service().create_draft(
-                context=_context(request),
+                context=context,
                 command=CreateProductionCommand(
                     project_id=project_id,
                     bom_id=bom_id,
@@ -384,6 +464,13 @@ def production_create_view(request: HttpRequest, project_id: UUID, bom_id: UUID)
                 ),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="production_release.create",
+                object_type="bom_version",
+                object_id=bom_id,
+                error=error,
+            )
             form.add_error(None, str(error))
         else:
             messages.success(request, "投产草稿已创建。")
@@ -394,8 +481,15 @@ def production_create_view(request: HttpRequest, project_id: UUID, bom_id: UUID)
 @require_GET
 @login_required
 def production_detail_view(request: HttpRequest, production_id: UUID) -> HttpResponse:
-    detail = queries.production_detail(_context(request), production_id)
+    context = _context(request)
+    detail = queries.production_detail(context, production_id)
     if detail is None:
+        record_denied_access(
+            context=context,
+            action="production_release.view",
+            object_type="production_release",
+            object_id=production_id,
+        )
         raise Http404
     return render(
         request,
@@ -407,9 +501,17 @@ def production_detail_view(request: HttpRequest, production_id: UUID) -> HttpRes
 @require_POST
 @login_required
 def production_release_view(request: HttpRequest, production_id: UUID) -> HttpResponse:
+    context = _context(request)
     try:
-        production_service().release(context=_context(request), production_id=production_id)
+        production_service().release(context=context, production_id=production_id)
     except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action="production_release.release",
+            object_type="production_release",
+            object_id=production_id,
+            error=error,
+        )
         messages.error(request, str(error))
     else:
         messages.success(request, "投产已发布，需求数量已固化。")
@@ -419,14 +521,22 @@ def production_release_view(request: HttpRequest, production_id: UUID) -> HttpRe
 @require_POST
 @login_required
 def request_create_view(request: HttpRequest, production_id: UUID) -> HttpResponse:
+    context = _context(request)
     key = request.POST.get("idempotency_key", "")
     try:
         purchase_request = procurement_service().create_draft(
-            context=_context(request),
+            context=context,
             production_id=production_id,
             idempotency_key=key,
         )
     except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action="purchase_request.create",
+            object_type="production_release",
+            object_id=production_id,
+            error=error,
+        )
         messages.error(request, str(error))
         return redirect("web-production-detail", production_id=production_id)
     messages.success(request, "生产请购草稿已生成。")
@@ -436,8 +546,15 @@ def request_create_view(request: HttpRequest, production_id: UUID) -> HttpRespon
 @require_GET
 @login_required
 def request_detail_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
-    detail = queries.request_detail(_context(request), request_id)
+    context = _context(request)
+    detail = queries.request_detail(context, request_id)
     if detail is None:
+        record_denied_access(
+            context=context,
+            action="purchase_request.view",
+            object_type="purchase_request",
+            object_id=request_id,
+        )
         raise Http404
     return render(
         request,
@@ -449,9 +566,17 @@ def request_detail_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
 @require_POST
 @login_required
 def request_submit_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
+    context = _context(request)
     try:
-        procurement_service().submit(context=_context(request), request_id=request_id)
+        procurement_service().submit(context=context, request_id=request_id)
     except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action="purchase_request.submit",
+            object_type="purchase_request",
+            object_id=request_id,
+            error=error,
+        )
         messages.error(request, str(error))
     else:
         messages.success(request, "生产请购已提交并取得正式编号。")
@@ -461,15 +586,23 @@ def request_submit_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
 @require_POST
 @login_required
 def request_cancel_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
+    context = _context(request)
     form = CancelForm(request.POST)
     if form.is_valid():
         try:
             procurement_service().cancel(
-                context=_context(request),
+                context=context,
                 request_id=request_id,
                 reason=str(form.cleaned_data["reason"]),
             )
         except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="purchase_request.cancel",
+                object_type="purchase_request",
+                object_id=request_id,
+                error=error,
+            )
             messages.error(request, str(error))
         else:
             messages.success(request, "生产请购已取消，来源数量恢复可请购。")
@@ -484,10 +617,32 @@ def attachment_download_view(request: HttpRequest, attachment_id: UUID) -> FileR
     context = _context(request)
     attachment = queries.attachment_for_bom(context, attachment_id)
     if attachment is None:
+        record_denied_access(
+            context=context,
+            action="attachment.download",
+            object_type="attachment",
+            object_id=attachment_id,
+        )
         raise Http404
-    stream = attachment_service().open_available(
+    try:
+        stream = attachment_service().open_available(
+            context=context,
+            attachment_id=AttachmentId(attachment_id),
+        )
+    except EXPECTED_USER_ERRORS as error:
+        record_expected_error(
+            context=context,
+            action="attachment.download",
+            object_type="attachment",
+            object_id=attachment_id,
+            error=error,
+        )
+        raise Http404 from error
+    record_protected_read(
         context=context,
-        attachment_id=AttachmentId(attachment_id),
+        action="attachment.download",
+        object_type="attachment",
+        object_id=attachment_id,
     )
     return FileResponse(stream, as_attachment=True, filename=attachment.original_filename)
 
@@ -510,4 +665,11 @@ def _authorize_tenant(context: TenantContext, permission: PermissionCode) -> Non
             lookup=DjangoPermissionGrantLookup(),
         )
     except PermissionDeniedError as error:
+        record_expected_error(
+            context=context,
+            action="authorization.denied",
+            object_type="permission",
+            object_id=permission.value,
+            error=error,
+        )
         raise PermissionDenied("当前成员无权打开该操作页面。") from error
