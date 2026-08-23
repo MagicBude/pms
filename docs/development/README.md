@@ -12,6 +12,7 @@
 - [工程骨架与质量工具实施计划](engineering-foundation-plan.md)：Phase 1 的实施顺序、提交边界和验收门槛。
 - [Phase 0 退出审查](phase-0-exit-review.md)：编码前交付物、剩余门槛和进入 Phase 1 的条件。
 - [Phase 1 退出审查](phase-1-exit-review.md)：工程基础证据、空目录复验和剩余交付门槛。
+- [Phase 2 退出审查](phase-2-exit-review.md)：45 条案例追踪、本机质量证据和正式退出外部门槛。
 - [开发环境搭建](setup.md)：Python、uv、依赖同步和当前可用命令。
 - [首次安装与可重复初始化](initialization.md)：空库迁移、默认租户管理员、幂等语义和烟雾检查。
 - [依赖评审](dependency-review.md)：直接依赖的用途、替代、安全、维护和许可证结论。
