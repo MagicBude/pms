@@ -4,6 +4,37 @@
 
 本文件记录执行事实和验证结果，不替代 Git 历史、变更记录或产品决策。新记录放在最上方；不要改写历史结论，如需纠正应新增一条说明。
 
+## 2026-08-23：完成 F-001 Python 工程与依赖锁
+
+### 完成
+
+- 确认 Phase 0 基线与 `origin/main` 同步后进入 F-001。
+- 从 Astral 固定版本官方地址安装 uv 0.12.5，并由 uv 安装 CPython 3.14.7。
+- 建立 `pyproject.toml`、`.python-version`、`src/pms` 和 uv_build 纯 Python 包边界。
+- 分组声明运行、服务器、开发、测试和安全依赖，生成并提交跨平台 `uv.lock`。
+- 编写开发环境搭建和直接依赖评审，记录用途、替代、维护、安全与许可证。
+
+### 判断
+
+- Django 下限使用 5.2.8，因为该补丁起正式支持 Python 3.14；锁文件实际解析为 5.2.17。
+- 项目元数据暂用 `0.0.0` 表示未发布工程，不提前决定正式版本策略。
+- uv_build 适合当前纯 Python `src/pms` 结构；需要扩展模块或构建脚本时再评估 Hatchling。
+- `pip-audit --locked` 不识别 uv.lock，因此对严格同步后的虚拟环境执行安全审计并记录限制。
+
+### 验证
+
+- `uv lock --check` 通过，解析并安装 56 个包。
+- 从空 `.venv` 执行 `uv sync --locked --all-groups` 成功；离线重复同步无漂移。
+- CPython 3.14.7 下成功导入 `pms`、Django、openpyxl、Uvicorn 和 psycopg。
+- uv_build 成功生成源码包和 wheel；`dist/` 保持 Git 忽略。
+- `pip-audit --local --skip-editable` 未发现已知漏洞。
+- 未创建 Django settings、ASGI、数据库迁移或业务模块，未读取旧系统文件。
+
+### 下一动作
+
+- 提交 F-001 独立回档点。
+- 进入 F-002，建立不启用认证和数据库迁移的最小 ASGI 与配置档案。
+
 ## 2026-08-23：接受 SLICE-001 验收案例并退出 Phase 0
 
 ### 完成

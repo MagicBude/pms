@@ -210,6 +210,8 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-001：建立 Python 工程和依赖锁
 
+实施状态：已完成（2026-08-23）
+
 建议提交：`build(repo): 建立 Python 工程与锁定依赖`
 
 主要内容：

@@ -8,7 +8,18 @@ PMS 是一套面向生产型企业的项目、订单、采购、生产、库存�
 2. 公司内网：统一服务机、多人访问、集中数据库和备份。
 3. 商业云端：域名、PostgreSQL、多租户、授权或订阅。
 
-当前阶段是 **Phase 0：项目蓝图和工程规范**。在关键业务边界、架构决策和验收标准明确前，不开始大规模业务编码。
+当前阶段是 **Phase 1：工程基础**。Phase 0 已通过退出审查，现按 F-001 至 F-009 逐批建立可重复的 Python/Django 工程、质量门槛、身份、租户、权限、审计和附件基础；尚未开始 `SLICE-001` 业务编码。
+
+## 开发环境
+
+F-001 已建立 Python 3.14、uv 项目和跨平台依赖锁。首次搭建执行：
+
+```powershell
+uv python install 3.14.7
+uv sync --locked --all-groups
+```
+
+完整说明见 [开发环境搭建](docs/development/setup.md)和 [F-001 依赖评审](docs/development/dependency-review.md)。当前还没有可启动的 Django 应用；ASGI 和配置档案属于 F-002。
 
 ## 阅读顺序
 
