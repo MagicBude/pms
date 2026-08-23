@@ -29,15 +29,17 @@
 推荐提交类型：
 
 ```text
-docs: define project blueprint
-feat: add purchase order confirmation
-fix: prevent cross-tenant invoice lookup
-test: cover payment rounding boundary
-refactor: isolate attachment storage adapter
-chore: configure static analysis
+docs: 确认项目蓝图
+feat: 新增采购订单确认
+fix: 阻止跨租户查询发票
+test: 覆盖付款金额舍入边界
+refactor: 隔离附件存储适配器
+chore: 配置静态检查
 ```
 
-提交说明应解释原因和影响，不只重复文件名。生成代码和迁移应与产生它们的逻辑变更一起提交。
+提交类型前缀使用英文 Conventional Commits 术语，冒号后的主题优先使用中文。提交说明应解释原因和影响，不只重复文件名。生成代码和迁移应与产生它们的逻辑变更一起提交。
+
+每个独立任务完成并通过相应验证后必须创建一次提交，形成可追溯、可回档的检查点。不能把下一个任务的半成品提前混入当前提交，也不能为了减少提交次数捆绑互不相关的变更。
 
 ## 4. 变更前检查
 
@@ -65,4 +67,3 @@ chore: configure static analysis
 评审重点依次是：业务正确性、数据和租户安全、可恢复性、测试证据、可维护性和风格。
 
 格式问题应尽量由自动化工具处理，人工评审集中于工具无法判断的设计和业务风险。
-
