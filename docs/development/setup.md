@@ -1,10 +1,10 @@
 # 开发环境搭建
 
-状态：F-001 基线
+状态：F-002 基线
 
 ## 1. 当前能力
 
-本页只覆盖 F-001 的 Python、uv、依赖同步和包构建。Django settings、ASGI、数据库和启动命令将在后续批次建立，当前不能使用 `runserver` 或假设应用已经可访问。
+本页覆盖 Python、uv、依赖同步，以及 F-002 的最小 Django ASGI 启动。当前根路径只是工程连通性提示，不是正式业务界面；不得据此创建数据库或录入真实数据。
 
 ## 2. 前置条件
 
@@ -36,7 +36,25 @@ uv sync --locked --all-groups
 
 生产部署不会直接照搬全部开发分组，具体安装方式在部署批次确定。
 
-## 4. F-001 验证
+## 4. 本机启动
+
+开发调试可执行：
+
+```powershell
+uv run python manage.py runserver 127.0.0.1:8000
+```
+
+浏览器访问 `http://127.0.0.1:8000/`，应看到“PMS 工程基础已启动”的文本提示。开发服务器只用于开发；本机交付将使用 Uvicorn 和后续启动器。
+
+验证 ASGI 正式入口可执行：
+
+```powershell
+uv run uvicorn pms.asgi:application --host 127.0.0.1 --port 8000
+```
+
+`local` 档案会拒绝 `PMS_BIND_HOST=0.0.0.0` 等非 loopback 配置。启动命令的 `--host` 必须与 `PMS_BIND_HOST` 保持一致；当前尚未建立自动拼装参数的启动器。
+
+## 5. 验证
 
 ```powershell
 uv run python --version
@@ -44,6 +62,9 @@ uv run python -c "import pms; print(pms.__name__)"
 uv lock --check
 uv sync --locked --all-groups
 uv build
+uv run python manage.py check
+uv run python -m unittest discover -v
+uv run python manage.py makemigrations --check --dry-run
 ```
 
 预期：
@@ -53,10 +74,14 @@ uv build
 - 锁文件与 `pyproject.toml` 一致；
 - 第二次同步没有依赖漂移；
 - `dist/` 中可以生成源码包和 wheel，且构建产物不进入 Git。
+- Django system checks 和 F-002 配置测试通过；
+- 迁移检查显示 `No changes detected`，启动过程不创建数据库文件。
 
 本批次尚未配置 Ruff、mypy、pytest 或 CI 命令。它们已经锁入依赖，但只有 F-003 配置完成并实际运行后才能报告检查通过。
 
-## 5. 更新依赖
+配置档案和环境变量见[部署配置档案](../deployment/configuration-profiles.md)。F-003 才会把 Ruff、mypy、pytest 和 CI 配置为统一质量门槛。
+
+## 6. 更新依赖
 
 依赖更新必须是独立、可评审任务：
 

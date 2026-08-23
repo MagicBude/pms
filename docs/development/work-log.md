@@ -4,6 +4,34 @@
 
 本文件记录执行事实和验证结果，不替代 Git 历史、变更记录或产品决策。新记录放在最上方；不要改写历史结论，如需纠正应新增一条说明。
 
+## 2026-08-23：完成 F-002 Django ASGI 与配置档案
+
+### 完成
+
+- 建立 `manage.py`、ASGI 入口、平台 URL 和不依赖数据库的最小 HTTP 响应。
+- 建立 `base`、`local`、`lan`、`cloud`、`test` 配置档案以及集中环境变量解析。
+- 本机档案强制 loopback；内网和云端缺少密钥、主机或 PostgreSQL 参数时快速失败。
+- 补充无秘密 `.env.example`、部署配置说明和 7 个配置/HTTP 回归测试。
+
+### 判断
+
+- F-002 根页面只用于证明浏览器链路，不提前形成业务 UI。
+- Uvicorn 的监听参数位于进程边界，因此 settings 校验 `PMS_BIND_HOST`，启动命令仍必须传相同地址；后续启动器统一两者。
+- F-004 前不启用 auth、sessions 和 admin，避免默认用户表进入迁移历史。
+
+### 验证
+
+- `python manage.py check` 通过，无 system check 问题。
+- `python -m unittest discover -v` 的 7 个测试通过。
+- Uvicorn 实际监听 `127.0.0.1` 后，HTTP 请求返回 200、预期中文提示及安全响应头。
+- `makemigrations --check --dry-run` 输出 `No changes detected`。
+- ASGI 应用可导入；检查后没有生成 SQLite 文件或迁移。
+
+### 下一动作
+
+- 提交 F-002 独立回档点。
+- 进入 F-003，建立 Ruff、mypy、pytest、覆盖率、导入边界和 CI。
+
 ## 2026-08-23：完成 F-001 Python 工程与依赖锁
 
 ### 完成

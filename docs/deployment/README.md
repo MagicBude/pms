@@ -27,3 +27,5 @@
 - 增加监控、告警、备份恢复、容量计划和订阅权益控制。
 
 当前详细方案见已经接受的 [ADR-0004：三阶段部署配置](../architecture/adr/ADR-0004-deployment-profiles.md)。后续按工程阶段补充各平台可执行的安装、升级、备份和恢复清单。
+
+F-002 已建立[部署配置档案](configuration-profiles.md)，说明当前可用 settings 模块、环境变量和启动安全边界。
