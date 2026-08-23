@@ -9,6 +9,11 @@ from pms.settings.base import *
 DEPLOYMENT_PROFILE = "test"
 DEBUG = False
 ALLOWED_HOSTS = ["testserver"]
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+if os.environ.get("PMS_TEST_DATABASE") == "postgresql":
+    from pms.settings.server import postgres_database
+
+    DATABASES = {"default": postgres_database()}
+else:
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False

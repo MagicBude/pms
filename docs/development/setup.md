@@ -97,7 +97,17 @@ uv run pip-audit --local --skip-editable --progress-spinner off
 
 GitHub Actions 对 `main` 推送和 Pull Request 执行相同门槛，并预启动 PostgreSQL 18。F-004 建立首批迁移前，PostgreSQL 服务只验证 CI 基础设施，不声称已经完成双数据库迁移测试。
 
-## 7. 更新依赖
+## 7. 数据库迁移
+
+F-004 起允许执行正式迁移。本机开发从空库初始化：
+
+```powershell
+uv run python manage.py migrate --noinput
+```
+
+当前迁移会建立 Django 权限、内容类型、会话和 PMS 自有 `identity_user` 表，不会创建默认 `auth_user`。重复执行应显示 `No migrations to apply`。不要手工修改 SQLite 结构；模型变化必须生成、审查并提交迁移。
+
+## 8. 更新依赖
 
 依赖更新必须是独立、可评审任务：
 

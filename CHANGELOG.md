@@ -11,6 +11,7 @@
 - 建立最小 Django ASGI、工程状态入口，以及 local、lan、cloud、test 配置档案。
 - 建立配置快速失败、loopback 限制、云端安全选项和无数据库 HTTP 响应测试。
 - 建立 Ruff、mypy、pytest、覆盖率、领域导入边界和 GitHub Actions 自动化质量门槛。
+- 建立 UUIDv7 自有用户、用户名/密码认证、会话基础和项目第一次数据库迁移。
 - 建立根级 `README.md`、`AGENTS.md`、项目状态页和文档分类。
 - 建立代码、注释、命名、文档、测试、日志与错误、安全和 Git 规范。
 - 建立项目蓝图以及本机、内网、云端三阶段演进方向。

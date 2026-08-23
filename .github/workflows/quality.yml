@@ -56,6 +56,20 @@ jobs:
       - name: Test with coverage
         run: uv run pytest
 
+      - name: Verify identity migrations and authentication on PostgreSQL 18
+        env:
+          DJANGO_SETTINGS_MODULE: pms.settings.test
+          PMS_TEST_DATABASE: postgresql
+          PMS_SECRET_KEY: ci-only-secret-key-not-for-production-identity-tests
+          PMS_DB_NAME: pms_test
+          PMS_DB_USER: pms
+          PMS_DB_PASSWORD: ci-only-password
+          PMS_DB_HOST: 127.0.0.1
+          PMS_DB_PORT: "5432"
+        run: |
+          uv run python manage.py migrate --noinput
+          uv run pytest tests/integration/identity --no-cov
+
       - name: Django system and migration checks
         run: |
           uv run python manage.py check
