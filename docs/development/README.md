@@ -10,6 +10,7 @@
 - [工作日志](work-log.md)：追加式执行事实与验证。
 - [AI 与跨电脑交接说明](handoff.md)：开始、执行和结束任务的固定动作。
 - [工程骨架与质量工具实施计划](engineering-foundation-plan.md)：Phase 1 的实施顺序、提交边界和验收门槛。
+- [Phase 0 退出审查](phase-0-exit-review.md)：编码前交付物、剩余门槛和进入 Phase 1 的条件。
 
 当前事实以根目录 [项目状态](../../PROJECT_STATUS.md) 为准。
 
