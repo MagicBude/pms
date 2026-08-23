@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "pms.identity.apps.IdentityConfig",
+    "pms.tenancy.apps.TenancyConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

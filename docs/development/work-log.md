@@ -4,6 +4,35 @@
 
 本文件记录执行事实和验证结果，不替代 Git 历史、变更记录或产品决策。新记录放在最上方；不要改写历史结论，如需纠正应新增一条说明。
 
+## 2026-08-23：建立 F-005 租户与成员候选基线
+
+### 完成
+
+- 建立 UUIDv7 `Tenant` 和 `Membership` ORM 映射及首次租户迁移。
+- 数据库限制同一用户在同一租户只有一条 membership，同时允许用户加入多个租户。
+- 建立纯 Python `TenantContext`、应用层查询端口和 Django ORM 适配器。
+- 解析入口只接受会话用户和 membership，不接受客户端声明的 tenant ID。
+- 覆盖其他用户 membership、停用 membership、停用 tenant、重复关系和多租户成员反向测试。
+- CI 的 PostgreSQL 18 步骤扩展为执行 identity 与 tenancy 集成测试。
+
+### 判断
+
+- tenant 与 membership 只承担企业归属，不提前混入 F-006 角色和权限。
+- 查询失败统一为成员关系不可用，避免泄露其他用户的 membership 是否存在。
+- 默认本机 tenant 和管理员初始化留在 F-009，迁移不产生环境相关数据。
+
+### 验证
+
+- Ruff、严格 mypy、25 个 pytest 和 96.71% 分支覆盖率通过。
+- 全新 SQLite 完整迁移成功，第二次迁移无操作。
+- SQLite 创建 `tenancy_tenant` 和 `tenancy_membership`，唯一约束测试通过。
+- PostgreSQL 18 迁移与约束验证等待候选提交推送后的 GitHub Quality 工作流。
+
+### 下一动作
+
+- 创建 F-005 候选提交并由用户推送。
+- CI 绿色后关闭 F-005，再进入 F-006 权限与审计。
+
 ## 2026-08-23：F-004 PostgreSQL 18 CI 验证通过
 
 ### 完成

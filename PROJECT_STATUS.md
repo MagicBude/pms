@@ -5,7 +5,7 @@
 - 最后更新：2026-08-23
 - 当前阶段：Phase 1（工程基础）
 - 当前结论：Phase 0 已通过退出审查；尚未开始业务编码，旧系统保持只读
-- 下一里程碑：完成 F-005 tenant、membership 与可信租户上下文
+- 下一里程碑：推送 F-005 候选提交并确认 PostgreSQL 18 CI
 
 ## 已完成
 
@@ -32,6 +32,7 @@
 - [x] 完成 F-002：建立最小 Django ASGI、URL、四套配置档案和启动安全测试。
 - [x] 完成 F-003：建立 Ruff、mypy、pytest、80% 覆盖率、导入边界和 GitHub Actions 门槛。
 - [x] 完成 F-004：自有 UUIDv7 用户、认证与会话基础，以及 SQLite/PostgreSQL 18 首次迁移验证。
+- [x] 完成 F-005 本地实现：tenant、membership、可信 `TenantContext` 和 SQLite 迁移验证。
 
 ## 正在进行
 
@@ -41,9 +42,9 @@
 
 ## 下一步
 
-1. 执行 F-005：建立 tenant、membership 与显式 `TenantContext`。
-2. 验证成员关系唯一性、停用边界以及客户端无法伪造 tenant。
-3. 同一迁移和关键集成测试继续覆盖 SQLite 与 PostgreSQL 18。
+1. 推送 F-005 候选提交，触发 PostgreSQL 18 迁移、约束和租户隔离测试。
+2. CI 通过后正式关闭 F-005，再进入 F-006 权限与审计基础。
+3. CI 未通过时留在 F-005 修复，不提前建立角色或审计模型。
 
 ## 当前阻塞与待决策
 
@@ -66,6 +67,8 @@
 - F-003 本地质量链通过：Ruff、mypy、14 个 pytest、90.20% 分支覆盖率、Django checks 和依赖审计。
 - F-004 已从空 SQLite 完成两次迁移验证：第一次成功，第二次无漂移；存在 `identity_user` 且不存在 `auth_user`。
 - 用户确认 F-004 GitHub Actions 为绿色；PostgreSQL 18 首次迁移和身份集成测试通过，F-004 正式完成。
+- F-005 在全新 SQLite 上首次迁移和重复迁移通过；25 项测试通过，覆盖率 96.71%。
+- F-005 的 PostgreSQL 18 验证已写入 Quality 工作流，等待候选提交推送后确认。
 
 ## 接续入口
 

@@ -68,7 +68,7 @@ jobs:
           PMS_DB_PORT: "5432"
         run: |
           uv run python manage.py migrate --noinput
-          uv run pytest tests/integration/identity --no-cov
+          uv run pytest tests/integration/identity tests/integration/tenancy --no-cov
 
       - name: Django system and migration checks
         run: |
