@@ -1,12 +1,12 @@
 # Phase 0 退出审查
 
-状态：待复审
+状态：已通过
 
 ## 1. 结论
 
-Phase 0 的结构、产品范围、关键架构和实施计划已经具备。当前尚不能宣布退出 Phase 0，唯一直接门槛是 [SLICE-001 验收案例](../product/slice-001-acceptance-cases.md)仍处于“评审中”。
+用户已于 2026-08-23 接受 [SLICE-001 验收案例](../product/slice-001-acceptance-cases.md)。Phase 0 所需的产品范围、业务基线、权限、状态、验收、架构、工程规范和实施计划均已具备，本审查通过。
 
-用户接受验收案例后，应更新本审查为“已通过”，再把项目阶段切换到 Phase 1，并从 F-001 开始工程实施。
+项目进入 Phase 1。工程实施必须从 F-001 开始，不能因为 Phase 0 通过而跳过依赖查证、独立验证和逐任务提交。
 
 ## 2. 退出条件检查
 
@@ -19,7 +19,7 @@ Phase 0 的结构、产品范围、关键架构和实施计划已经具备。当
 | 核心数据与业务规则 | SLICE-001 第 7、8、11 节、[业务规则基线](../product/business-rules.md) | 通过，切片外规则继续评审 |
 | 角色、权限和对象范围 | [角色与权限矩阵](../product/role-permission-matrix.md) | 通过 |
 | 核心状态机 | [核心状态机](../product/state-models.md) | 通过 |
-| Given/When/Then 验收案例 | [SLICE-001 验收案例](../product/slice-001-acceptance-cases.md) | 待用户接受 |
+| Given/When/Then 验收案例 | [SLICE-001 验收案例](../product/slice-001-acceptance-cases.md) | 通过 |
 | 系统上下文与模块边界 | [系统上下文](../architecture/system-context.md)、[模块边界](../architecture/module-boundaries.md) | 通过 |
 | 关键技术决策 | [ADR 索引](../architecture/adr/README.md) | 通过 |
 | 安全、租户与附件边界 | 安全规范、权限矩阵、ADR-0002、ADR-0003 | 通过，相关实现批次仍需专项测试 |
@@ -50,12 +50,10 @@ Phase 0 的结构、产品范围、关键架构和实施计划已经具备。当
 4. 确认没有真实数据、数据库、附件、密钥或旧系统文件进入暂存区；
 5. 按 [工程骨架实施计划](engineering-foundation-plan.md) 只执行 F-001，不提前混入 F-002。
 
-## 5. 复审动作
+## 5. 复审结果
 
-用户接受 `SLICE-001` 验收案例后：
-
-- 将验收案例状态改为“已接受”；
-- 将本文件状态改为“已通过”；
-- 在项目状态和路线图中结束 Phase 0、开始 Phase 1；
-- 创建独立 Git 提交作为 Phase 0 基线标签点；
-- 是否创建 Git tag 需由用户另行决定，不自动打标签或发布版本。
+- 验收案例已转为“已接受”；
+- 本审查已转为“已通过”；
+- 项目状态和路线图进入 Phase 1；
+- 本批次创建独立 Git 提交作为 Phase 0 基线点；
+- 未创建 Git tag。是否打标签或发布版本仍需用户另行决定。
