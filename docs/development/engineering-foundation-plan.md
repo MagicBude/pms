@@ -334,7 +334,7 @@ uv run python manage.py makemigrations --check --dry-run
 
 ### F-007：建立健康检查、日志和错误边界
 
-实施状态：本地候选完成（2026-08-23，等待 PostgreSQL 18 CI）
+实施状态：已完成（2026-08-23，SQLite 本地与 PostgreSQL 18 CI）
 
 建议提交：`feat(platform): 建立健康检查与错误处理基础`
 

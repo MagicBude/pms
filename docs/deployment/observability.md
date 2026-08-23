@@ -1,6 +1,6 @@
 # 健康检查、运行日志与错误响应
 
-状态：F-007 本地候选基线，等待 PostgreSQL 18 CI 验证
+状态：已验证（SQLite 本地与 PostgreSQL 18 CI）
 
 ## 1. 健康端点
 
