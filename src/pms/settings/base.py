@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from pms.platform.logging import build_logging_config
 from pms.settings.environment import require
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -22,6 +23,7 @@ INSTALLED_APPS = [
     "pms.audit.apps.AuditConfig",
 ]
 MIDDLEWARE = [
+    "pms.platform.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -49,3 +51,5 @@ USE_TZ = True
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+
+LOGGING = build_logging_config(app_level="INFO")

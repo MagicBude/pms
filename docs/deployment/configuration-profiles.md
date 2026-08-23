@@ -43,3 +43,10 @@ PMS 使用同一套业务代码，通过 `local`、`lan`、`cloud` 和 `test` �
 - `lan` 和 `cloud` 绝不在配置缺失时回退 SQLite。
 
 F-002 只验证配置结构，不连接 PostgreSQL，也不执行迁移。正式部署说明将在相应阶段补充。
+
+## 5. 可观测性差异
+
+F-007 起，所有档案启用统一的 request ID、安全错误响应和 JSON 运行日志。local 默认
+`INFO`，显式启用 `PMS_DEBUG` 时仅 PMS logger 提升为 `DEBUG`；lan 和 cloud 保持
+`INFO`，test 使用 `CRITICAL` 减少自动化噪音。健康探针与反向代理接入方式见
+[健康检查、运行日志与错误响应](observability.md)。

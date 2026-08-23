@@ -107,6 +107,7 @@ assert local.BIND_HOST == "127.0.0.1"
 assert set(local.ALLOWED_HOSTS) == {"127.0.0.1", "localhost", "[::1]"}
 assert local.SESSION_COOKIE_SECURE is False
 assert local.CSRF_COOKIE_SECURE is False
+assert local.LOGGING["loggers"]["pms"]["level"] == "INFO"
 """
         result = subprocess.run(
             [sys.executable, "-c", assertions],
@@ -147,6 +148,29 @@ assert Path(connection.settings_dict["NAME"]).parent.is_dir()
 
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_local_debug_only_raises_pms_application_log_level(self) -> None:
+        assertions = """
+from pms.settings import local
+assert local.DEBUG is True
+assert local.LOGGING["loggers"]["pms"]["level"] == "DEBUG"
+assert local.LOGGING["root"]["level"] == "WARNING"
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", assertions],
+            cwd=self.project_root,
+            env={
+                **{
+                    name: value for name, value in os.environ.items() if not name.startswith("PMS_")
+                },
+                "PMS_DEBUG": "true",
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_lan_rejects_missing_required_configuration(self) -> None:
         result = self.import_profile("lan", {})
 
@@ -169,6 +193,7 @@ assert cloud.DEBUG is False
 assert cloud.SESSION_COOKIE_SECURE
 assert cloud.CSRF_COOKIE_SECURE
 assert cloud.SECURE_SSL_REDIRECT
+assert cloud.LOGGING["loggers"]["pms"]["level"] == "INFO"
 """
         result = subprocess.run(
             [sys.executable, "-c", assertions],
@@ -197,6 +222,7 @@ assert lan.DEBUG is False
 assert lan.SESSION_COOKIE_SECURE
 assert lan.CSRF_COOKIE_SECURE
 assert lan.ALLOWED_HOSTS == ["pms.example.internal"]
+assert lan.LOGGING["loggers"]["pms"]["level"] == "INFO"
 """
         result = subprocess.run(
             [sys.executable, "-c", assertions],

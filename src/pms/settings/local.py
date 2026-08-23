@@ -13,6 +13,7 @@ os.environ.setdefault(
     "f002-local-only-not-for-production-change-before-delivery-2026",
 )
 
+from pms.platform.logging import build_logging_config
 from pms.settings.base import *
 from pms.settings.environment import (
     ConfigurationError,
@@ -22,6 +23,7 @@ from pms.settings.environment import (
 
 DEPLOYMENT_PROFILE = "local"
 DEBUG = read_bool("PMS_DEBUG", default=False)
+LOGGING = build_logging_config(app_level="DEBUG" if DEBUG else "INFO")
 BIND_HOST = os.environ.get("PMS_BIND_HOST", "127.0.0.1").strip()
 
 try:
