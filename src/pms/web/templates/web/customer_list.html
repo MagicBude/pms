@@ -1,0 +1,3 @@
+{% extends "web/base.html" %}{% block title %}客户{% endblock %}{% block content %}
+<div class="page-head"><div><h1>客户</h1><p class="subtitle">项目使用的租户级客户主数据。</p></div><a class="button" href="{% url 'web-customer-create' %}">新建客户</a></div>
+<div class="table-wrap"><table><thead><tr><th>客户代码</th><th>名称</th><th>状态</th></tr></thead><tbody>{% for item in customers %}<tr><td>{{ item.code }}</td><td>{{ item.name }}</td><td>{% if item.is_active %}<span class="status ACTIVE">启用</span>{% else %}<span class="status CANCELLED">停用</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="3" class="empty">尚无客户。</td></tr>{% endfor %}</tbody></table></div>{% endblock %}

@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "django.contrib.messages",
     "pms.platform.apps.PlatformConfig",
     "pms.identity.apps.IdentityConfig",
     "pms.tenancy.apps.TenancyConfig",
@@ -28,21 +29,37 @@ INSTALLED_APPS = [
     "pms.bom.apps.BomConfig",
     "pms.production.apps.ProductionConfig",
     "pms.procurement.apps.ProcurementConfig",
+    "pms.web.apps.WebConfig",
 ]
 MIDDLEWARE = [
     "pms.platform.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 ROOT_URLCONF = "pms.urls"
-TEMPLATES: list[dict[str, object]] = []
+TEMPLATES: list[dict[str, object]] = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
+    }
+]
 WSGI_APPLICATION = None
 ASGI_APPLICATION = "pms.asgi.application"
 AUTH_USER_MODEL = "identity.User"
+LOGIN_URL = "/login/"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

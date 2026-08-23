@@ -95,13 +95,13 @@ class EnvironmentParsingTests(unittest.TestCase):
 
 @override_settings(ROOT_URLCONF="pms.urls", ALLOWED_HOSTS=["testserver"])
 class PlatformHttpTests(SimpleTestCase):
-    """最小入口不得依赖数据库。"""
+    """匿名入口无需数据库即可安全到达登录页。"""
 
-    def test_index_returns_engineering_status(self) -> None:
+    def test_index_redirects_to_local_workbench_login(self) -> None:
         response = Client().get("/")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "业务界面将在 SLICE-001 中提供")
+        self.assertRedirects(response, "/login/?next=/", fetch_redirect_response=False)
+        self.assertContains(Client().get("/login/"), "欢迎回来")
 
 
 class ProfileStartupTests(unittest.TestCase):

@@ -1,0 +1,3 @@
+{% extends "web/base.html" %}{% block title %}{{ title }}{% endblock %}
+{% block content %}<div class="page-head"><div><h1>{{ title }}</h1><p class="subtitle">所有字段在服务端再次校验，租户和状态不由页面提交。</p></div></div>
+<div class="card form-card"><form method="post">{% csrf_token %}{% if form.non_field_errors %}<div class="nonfield">{{ form.non_field_errors }}</div>{% endif %}{% for field in form %}<div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="actions"><button class="button" type="submit">保存</button><a class="button secondary" href="{% url 'web-dashboard' %}">返回工作台</a></div></form></div>{% endblock %}

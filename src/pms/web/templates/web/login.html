@@ -1,0 +1,13 @@
+{% extends "web/base.html" %}
+{% block title %}登录{% endblock %}
+{% block anonymous %}
+<div class="login-shell"><div class="login-card">
+  <div class="login-mark">P</div><h1>欢迎回来</h1><p class="subtitle">登录本机 PMS，继续项目、BOM 与生产请购。</p>
+  <form method="post" style="margin-top:26px">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="nonfield">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}<div class="field">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+    <button class="button" type="submit">登录系统</button>
+  </form>
+  <p class="subtitle" style="margin-top:18px;font-size:12px">账户由初始化命令创建；密码不会写入配置、日志或页面。</p>
+</div></div>
+{% endblock %}

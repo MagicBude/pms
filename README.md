@@ -8,18 +8,23 @@ PMS 是一套面向生产型企业的项目、订单、采购、生产、库存�
 2. 公司内网：统一服务机、多人访问、集中数据库和备份。
 3. 商业云端：域名、PostgreSQL、多租户、授权或订阅。
 
-当前阶段是 **Phase 1：工程基础**。Phase 0 已通过退出审查，现按 F-001 至 F-009 逐批建立可重复的 Python/Django 工程、质量门槛、身份、租户、权限、审计和附件基础；尚未开始 `SLICE-001` 业务编码。
+当前阶段是 **Phase 2：本机最小可用版本**。工程、身份、租户、权限、审计、附件、备份和正式
+启动基础已经建立；`SLICE-001` 已能在浏览器中从登录走到已提交生产请购，正在补齐旧数据迁移、
+完整恢复演练和阶段退出证据。
 
 ## 开发环境
 
-F-001 已建立 Python 3.14、uv 项目和跨平台依赖锁。首次搭建执行：
+项目使用 Python 3.14、uv 和跨平台依赖锁。首次搭建执行：
 
 ```powershell
 uv python install 3.14.7
 uv sync --locked --all-groups
 ```
 
-完整说明见 [开发环境搭建](docs/development/setup.md)和 [F-001 依赖评审](docs/development/dependency-review.md)。F-011 已提供经过前置检查和 ready 等待的[本机正式启动器](docs/deployment/local-launcher.md)；根路径仍只显示工程状态，正式业务界面将在 `SLICE-001` 实现。
+完整说明见 [开发环境搭建](docs/development/setup.md)和 [依赖评审](docs/development/dependency-review.md)。
+完成迁移和初始化后，使用经过前置检查与 ready 等待的
+[本机正式启动器](docs/deployment/local-launcher.md)打开工作台；首版页面操作顺序见
+[本机工作台操作路径](docs/product/local-workbench.md)。
 
 ## 阅读顺序
 

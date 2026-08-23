@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PMS{% endblock %} · 生产管理系统</title>
+  <style>
+    :root{--ink:#172033;--muted:#667085;--line:#e6e9ef;--paper:#fff;--bg:#f4f6fa;--brand:#3154d8;--brand2:#6b7cff;--good:#147a55;--warn:#ad6800;--bad:#b42318;--shadow:0 14px 38px rgba(28,39,69,.08)}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+    a{color:var(--brand);text-decoration:none} a:hover{text-decoration:underline}.shell{min-height:100vh;display:grid;grid-template-columns:232px 1fr}
+    .sidebar{background:#111a2e;color:#e7ebf5;padding:28px 20px;position:sticky;top:0;height:100vh}.brand{font-size:21px;font-weight:750;letter-spacing:.4px;margin:0 8px 30px}.brand small{display:block;color:#8f9bb8;font-size:11px;font-weight:500;margin-top:2px}
+    .nav a{display:flex;color:#c9d1e4;padding:10px 12px;border-radius:9px;margin:4px 0;font-weight:600}.nav a:hover{background:#1e2a47;text-decoration:none;color:#fff}.sidebar-foot{position:absolute;bottom:24px;left:20px;right:20px;color:#8f9bb8;font-size:12px}
+    .main{min-width:0}.topbar{height:70px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:flex-end;padding:0 34px;position:sticky;top:0;z-index:5;backdrop-filter:blur(10px)}
+    .user{display:flex;align-items:center;gap:12px}.avatar{width:34px;height:34px;border-radius:10px;background:#e9edff;color:var(--brand);display:grid;place-items:center;font-weight:800}.logout{border:0;background:transparent;color:var(--muted);cursor:pointer}.content{max-width:1240px;margin:0 auto;padding:34px}
+    .page-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:24px}.page-head h1{font-size:27px;line-height:1.25;margin:0 0 6px}.subtitle{margin:0;color:var(--muted)}
+    .button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;border-radius:9px;padding:9px 15px;background:var(--brand);color:#fff;font-weight:650;cursor:pointer;font:inherit}.button:hover{background:#2446c4;text-decoration:none}.button.secondary{background:#fff;color:var(--ink);border-color:#d6dbe6}.button.danger{background:#fff;color:var(--bad);border-color:#f1b4af}.button.small{padding:6px 10px;font-size:12px}
+    .grid{display:grid;gap:18px}.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px}.metric strong{font-size:30px;display:block}.metric span{color:var(--muted)}
+    .table-wrap{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}table{width:100%;border-collapse:collapse}th,td{padding:13px 16px;text-align:left;border-bottom:1px solid #edf0f4;white-space:nowrap}th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#fafbfc}tr:last-child td{border-bottom:0}
+    .status{display:inline-flex;border-radius:999px;padding:3px 9px;background:#eef1f6;color:#4b5565;font-size:12px;font-weight:700}.status.ACTIVE,.status.PUBLISHED,.status.RELEASED,.status.SUBMITTED{background:#e7f6ef;color:var(--good)}.status.DRAFT{background:#fff4dc;color:var(--warn)}.status.CANCELLED,.status.SUPERSEDED,.status.CLOSED{background:#f0f1f4;color:#667085}
+    .form-card{max-width:760px}.field{margin-bottom:17px}.field label{display:block;font-weight:650;margin-bottom:6px}.field-control{width:100%;border:1px solid #cfd5df;border-radius:9px;padding:10px 12px;background:#fff;color:var(--ink);font:inherit}.field-control:focus{outline:3px solid #dfe5ff;border-color:var(--brand)}input[type=checkbox].field-control{width:auto}.helptext{display:block;color:var(--muted);font-size:12px;margin-top:4px}.errorlist{color:var(--bad);margin:6px 0;padding-left:20px}.nonfield{background:#fff1f0;border:1px solid #ffc9c5;color:var(--bad);padding:10px 12px;border-radius:9px;margin-bottom:16px}
+    .messages{display:grid;gap:8px;margin-bottom:20px}.message{padding:11px 14px;border-radius:9px;background:#eaf7f1;color:var(--good);border:1px solid #b9e4d2}.message.error{background:#fff1f0;color:var(--bad);border-color:#ffc9c5}
+    .actions{display:flex;gap:9px;flex-wrap:wrap}.section{margin-top:26px}.section h2{font-size:18px;margin:0 0 13px}.empty{padding:34px;text-align:center;color:var(--muted)}.meta{display:flex;gap:24px;flex-wrap:wrap;color:var(--muted)}.meta b{color:var(--ink)}
+    .error-chip{display:block;color:var(--bad);font-size:12px;max-width:360px;white-space:normal}.login-shell{min-height:100vh;display:grid;place-items:center;padding:28px;background:radial-gradient(circle at 20% 15%,#dce3ff,transparent 35%),linear-gradient(135deg,#f5f7fb,#e9edf7)}.login-card{width:min(440px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:36px;box-shadow:0 24px 70px rgba(33,46,82,.15)}.login-card h1{margin:0 0 5px;font-size:28px}.login-card .button{width:100%;margin-top:8px}.login-mark{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;display:grid;place-items:center;font-weight:800;margin-bottom:22px}
+    @media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto}.nav{display:flex;overflow:auto}.nav a{white-space:nowrap}.sidebar-foot{display:none}.topbar{display:none}.content{padding:22px}.grid.four,.grid.two{grid-template-columns:1fr}.page-head{display:block}.page-head .actions{margin-top:14px}}
+  </style>
+</head>
+<body>
+{% if request.user.is_authenticated %}
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">PMS<small>Production Management System</small></div>
+    <nav class="nav" aria-label="主导航">
+      <a href="{% url 'web-dashboard' %}">工作台</a>
+      <a href="{% url 'web-project-list' %}">项目与业务链</a>
+      <a href="{% url 'web-customer-list' %}">客户</a>
+      <a href="{% url 'web-material-list' %}">物料与基础资料</a>
+    </nav>
+    <div class="sidebar-foot">Phase 2 · 本机最小可用版本</div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="user"><span class="avatar">{{ request.user.username|slice:":1"|upper }}</span><span>{{ request.user.username }}</span><form method="post" action="{% url 'web-logout' %}">{% csrf_token %}<button class="logout" type="submit">退出</button></form></div>
+    </header>
+    <div class="content">
+      {% if messages %}<div class="messages">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% else %}{% block anonymous %}{% endblock %}{% endif %}
+</body>
+</html>
