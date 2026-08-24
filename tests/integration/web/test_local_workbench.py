@@ -142,6 +142,7 @@ def test_browser_workflow_reaches_submitted_purchase_request(
             "name": "界面示例电机",
             "specification": "220V",
             "brand": "教学品牌",
+            "part_attribute": "采购件",
             "unit_id": str(unit.id),
             "category_id": str(category.id),
             "procurement_required": "on",
@@ -149,6 +150,7 @@ def test_browser_workflow_reaches_submitted_purchase_request(
     )
     assert material_response.status_code == 302
     assert Material.objects.get(code="MAT-UI-001").procurement_required is True
+    assert Material.objects.get(code="MAT-UI-001").part_attribute == "采购件"
 
     project_response = client.post(
         "/projects/new/",

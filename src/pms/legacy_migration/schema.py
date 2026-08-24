@@ -15,6 +15,7 @@ from typing import cast
 
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 SCHEMA_VERSION = "pms-legacy-slice-v1"
+SCHEMA_VERSION_V2 = "pms-legacy-slice-v2"
 SAMPLE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 
 
@@ -52,6 +53,7 @@ class LegacyMaterial:
     name: str
     specification: str
     brand: str
+    part_attribute: str
     unit_code: str
     category_code: str
     procurement_required: bool
@@ -69,6 +71,10 @@ class LegacyProject:
 
 @dataclass(frozen=True, slots=True)
 class LegacyBomRow:
+    source_row_number: int
+    level_path: str
+    assembly_code: str
+    assembly_name: str
     material_code: str
     material_name: str
     specification: str
@@ -157,7 +163,8 @@ def parse_legacy_slice_package(payload: object) -> LegacySlicePackage:
             "accepted_differences",
         },
     )
-    if _text(root["schema_version"], "schema_version") != SCHEMA_VERSION:
+    schema_version = _text(root["schema_version"], "schema_version")
+    if schema_version not in {SCHEMA_VERSION, SCHEMA_VERSION_V2}:
         raise LegacyPackageError("不支持的迁移包 schema_version。")
     sample = _sample(root["sample"])
     master = _object(
@@ -170,9 +177,9 @@ def parse_legacy_slice_package(payload: object) -> LegacySlicePackage:
         customer=_customer(master["customer"]),
         units=_code_names(master["units"], "units"),
         categories=_code_names(master["categories"], "categories"),
-        materials=_materials(master["materials"]),
+        materials=_materials(master["materials"], schema_version=schema_version),
         project=_project(root["project"]),
-        bom=_bom(root["bom"]),
+        bom=_bom(root["bom"], schema_version=schema_version),
         production=_production(root["production"]),
         purchase_candidates=_purchase_candidates(root["legacy_purchase_candidates"]),
         accepted_differences=_accepted_differences(root["accepted_differences"]),
@@ -187,13 +194,15 @@ def _sample(value: object) -> SampleMetadata:
     if SAMPLE_ID_PATTERN.fullmatch(sample_id) is None:
         raise LegacyPackageError("sample.id 必须是 3 至 64 位小写 slug。")
     kind = _text(item["kind"], "sample.kind")
-    if kind not in {"synthetic", "business_confirmed"}:
-        raise LegacyPackageError("sample.kind 只允许 synthetic 或 business_confirmed。")
+    if kind not in {"synthetic", "business_pending", "business_confirmed"}:
+        raise LegacyPackageError(
+            "sample.kind 只允许 synthetic、business_pending 或 business_confirmed。"
+        )
     confirmed_by = _optional_text(item["confirmed_by"], "sample.confirmed_by")
     if kind == "business_confirmed" and confirmed_by is None:
         raise LegacyPackageError("业务已确认样例必须填写 confirmed_by。")
-    if kind == "synthetic" and confirmed_by is not None:
-        raise LegacyPackageError("虚构技术样例不能填写业务 confirmed_by。")
+    if kind != "business_confirmed" and confirmed_by is not None:
+        raise LegacyPackageError("尚未业务确认的样例不能填写 confirmed_by。")
     return SampleMetadata(id=sample_id, kind=kind, confirmed_by=confirmed_by)
 
 
@@ -219,21 +228,24 @@ def _code_name(value: object, label: str) -> CodeName:
     )
 
 
-def _materials(value: object) -> tuple[LegacyMaterial, ...]:
+def _materials(value: object, *, schema_version: str) -> tuple[LegacyMaterial, ...]:
     result: list[LegacyMaterial] = []
     for raw in _array(value, "materials"):
+        required = {
+            "code",
+            "name",
+            "specification",
+            "brand",
+            "unit_code",
+            "category_code",
+            "procurement_required",
+        }
+        if schema_version == SCHEMA_VERSION_V2:
+            required.add("part_attribute")
         item = _object(
             raw,
             label="materials[]",
-            required={
-                "code",
-                "name",
-                "specification",
-                "brand",
-                "unit_code",
-                "category_code",
-                "procurement_required",
-            },
+            required=required,
         )
         procurement_required = item["procurement_required"]
         if not isinstance(procurement_required, bool):
@@ -245,6 +257,11 @@ def _materials(value: object) -> tuple[LegacyMaterial, ...]:
                 specification=_optional_text(item["specification"], "materials[].specification")
                 or "",
                 brand=_optional_text(item["brand"], "materials[].brand") or "",
+                part_attribute=(
+                    _optional_text(item["part_attribute"], "materials[].part_attribute") or ""
+                    if schema_version == SCHEMA_VERSION_V2
+                    else ""
+                ),
                 unit_code=_text(item["unit_code"], "materials[].unit_code"),
                 category_code=_text(item["category_code"], "materials[].category_code"),
                 procurement_required=procurement_required,
@@ -280,26 +297,49 @@ def _project(value: object) -> LegacyProject:
     )
 
 
-def _bom(value: object) -> LegacyBom:
+def _bom(value: object, *, schema_version: str) -> LegacyBom:
     item = _object(value, label="bom", required={"version_number", "rows"})
     version_number = _positive_integer(item["version_number"], "bom.version_number")
     rows: list[LegacyBomRow] = []
-    for raw in _array(item["rows"], "bom.rows"):
+    for generated_row_number, raw in enumerate(_array(item["rows"], "bom.rows"), start=2):
+        required = {
+            "material_code",
+            "material_name",
+            "specification",
+            "brand",
+            "quantity_per_unit",
+            "unit_code",
+            "remark",
+        }
+        if schema_version == SCHEMA_VERSION_V2:
+            required.update({"source_row_number", "level_path", "assembly_code", "assembly_name"})
         row = _object(
             raw,
             label="bom.rows[]",
-            required={
-                "material_code",
-                "material_name",
-                "specification",
-                "brand",
-                "quantity_per_unit",
-                "unit_code",
-                "remark",
-            },
+            required=required,
         )
         rows.append(
             LegacyBomRow(
+                source_row_number=(
+                    _positive_integer(row["source_row_number"], "bom.rows[].source_row_number")
+                    if schema_version == SCHEMA_VERSION_V2
+                    else generated_row_number
+                ),
+                level_path=(
+                    _optional_text(row["level_path"], "bom.rows[].level_path") or ""
+                    if schema_version == SCHEMA_VERSION_V2
+                    else ""
+                ),
+                assembly_code=(
+                    _optional_text(row["assembly_code"], "bom.rows[].assembly_code") or ""
+                    if schema_version == SCHEMA_VERSION_V2
+                    else ""
+                ),
+                assembly_name=(
+                    _optional_text(row["assembly_name"], "bom.rows[].assembly_name") or ""
+                    if schema_version == SCHEMA_VERSION_V2
+                    else ""
+                ),
                 material_code=_text(row["material_code"], "bom.rows[].material_code"),
                 material_name=_text(row["material_name"], "bom.rows[].material_name"),
                 specification=_optional_text(row["specification"], "bom.rows[].specification")
@@ -314,6 +354,8 @@ def _bom(value: object) -> LegacyBom:
         )
     if not rows:
         raise LegacyPackageError("bom.rows 至少包含一行。")
+    if len({row.source_row_number for row in rows}) != len(rows):
+        raise LegacyPackageError("bom.rows[].source_row_number 不得重复。")
     return LegacyBom(version_number=version_number, rows=tuple(rows))
 
 
@@ -402,7 +444,7 @@ def _validate_cross_references(package: LegacySlicePackage) -> None:
             raise LegacyPackageError("bom.rows[].material_code 引用了未声明物料。")
         if row.unit_code.casefold() not in unit_codes:
             raise LegacyPackageError("bom.rows[].unit_code 引用了未声明单位。")
-    bom_source_rows = set(range(2, len(package.bom.rows) + 2))
+    bom_source_rows = {row.source_row_number for row in package.bom.rows}
     if any(item.source_row_number not in bom_source_rows for item in package.purchase_candidates):
         raise LegacyPackageError("请购候选 source_row_number 必须引用 BOM 数据行。")
 

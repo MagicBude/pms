@@ -94,6 +94,7 @@ class MasterDataRepository(Protocol):
         normalized_name: str,
         specification: str,
         brand: str,
+        part_attribute: str,
         unit_id: UUID,
         category_id: UUID,
         procurement_required: bool,
@@ -110,6 +111,7 @@ class CreateMaterialCommand:
     category_id: UUID
     specification: str = ""
     brand: str = ""
+    part_attribute: str = ""
     procurement_required: bool = True
 
 
@@ -261,6 +263,9 @@ class MasterDataService:
             command.specification, maximum_length=200, field_name="规格型号"
         )
         brand = normalize_optional_text(command.brand, maximum_length=100, field_name="品牌")
+        part_attribute = normalize_optional_text(
+            command.part_attribute, maximum_length=100, field_name="零件属性"
+        )
         with self._transactions.atomic():
             created = self._repository.create_material(
                 tenant_id=context.tenant_id,
@@ -269,6 +274,7 @@ class MasterDataService:
                 normalized_name=normalized_name,
                 specification=specification,
                 brand=brand,
+                part_attribute=part_attribute,
                 unit_id=command.unit_id,
                 category_id=command.category_id,
                 procurement_required=command.procurement_required,

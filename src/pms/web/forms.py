@@ -74,6 +74,7 @@ class MaterialForm(StyledForm):
     name = forms.CharField(label="物料名称", max_length=200)
     specification = forms.CharField(label="规格型号", max_length=200, required=False)
     brand = forms.CharField(label="品牌", max_length=100, required=False)
+    part_attribute = forms.CharField(label="零件属性", max_length=100, required=False)
     unit_id = forms.ChoiceField(label="单位")
     category_id = forms.ChoiceField(label="物料分类")
     procurement_required = forms.BooleanField(label="需要采购", required=False, initial=True)

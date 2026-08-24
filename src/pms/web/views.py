@@ -268,6 +268,7 @@ def material_create_view(request: HttpRequest) -> HttpResponse:
                     name=str(form.cleaned_data["name"]),
                     specification=str(form.cleaned_data["specification"]),
                     brand=str(form.cleaned_data["brand"]),
+                    part_attribute=str(form.cleaned_data["part_attribute"]),
                     unit_id=UUID(str(form.cleaned_data["unit_id"])),
                     category_id=UUID(str(form.cleaned_data["category_id"])),
                     procurement_required=bool(form.cleaned_data["procurement_required"]),

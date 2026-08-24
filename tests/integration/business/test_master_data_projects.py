@@ -118,6 +118,7 @@ def test_admin_creates_tenant_scoped_master_data_with_audit(
             name="示例电机",
             specification="  220V   1kW ",
             brand="Demo",
+            part_attribute="采购件",
             unit_id=unit.id,
             category_id=category.id,
             procurement_required=True,
@@ -127,6 +128,7 @@ def test_admin_creates_tenant_scoped_master_data_with_audit(
     assert customer.code == "CUS-001"
     saved_material = Material.objects.get(id=material.id, tenant_id=context.tenant_id)
     assert saved_material.specification == "220V 1kW"
+    assert saved_material.part_attribute == "采购件"
     assert saved_material.procurement_required
     assert (
         AuditLog.objects.filter(

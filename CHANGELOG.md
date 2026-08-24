@@ -6,6 +6,9 @@
 
 ### Added
 
+- 建立 `pms-legacy-slice-v2` 真实项目切片映射，保留 BOM 原始行、部套和零件属性，生成仅本机
+  可见的业务复核页，并以 `BUSINESS_PENDING` 隔离待确认数据与正式业务签收。
+
 - 建立 Python 3.14、uv、`src/pms` 包结构、分组依赖和跨平台锁文件。
 - 建立 F-001 开发环境搭建与依赖评审文档。
 - 建立最小 Django ASGI、工程状态入口，以及 local、lan、cloud、test 配置档案。

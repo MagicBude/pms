@@ -90,6 +90,7 @@ class MaterialItem:
     code: str
     name: str
     specification: str
+    part_attribute: str
     unit: str
     category: str
     procurement_required: bool
@@ -281,6 +282,7 @@ def materials(context: TenantContext) -> tuple[MaterialItem, ...]:
             code=row.code,
             name=row.name,
             specification=row.specification,
+            part_attribute=row.part_attribute,
             unit=row.unit.name,
             category=row.category.name,
             procurement_required=row.procurement_required,

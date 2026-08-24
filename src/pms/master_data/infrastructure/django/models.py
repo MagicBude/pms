@@ -109,6 +109,7 @@ class Material(TenantMasterData):
 
     specification = models.CharField(max_length=200, blank=True)
     brand = models.CharField(max_length=100, blank=True)
+    part_attribute = models.CharField(max_length=100, blank=True)
     unit = models.ForeignKey(Unit, on_delete=models.PROTECT, related_name="materials")
     category = models.ForeignKey(
         MaterialCategory, on_delete=models.PROTECT, related_name="materials"

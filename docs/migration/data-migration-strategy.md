@@ -40,6 +40,7 @@ PMS 进程。
 | 等级 | 含义 | 是否关闭业务验收 |
 | --- | --- | --- |
 | `TECHNICAL_ONLY` | 完全虚构样例验证 schema、用例编排、幂等和报告 | 否 |
+| `BUSINESS_PENDING` | 真实数据已技术映射和隔离对账，但字段含义尚未由业务人员确认 | 否 |
 | `BUSINESS_CONFIRMED` + `MATCHED` | 业务已确认样例且新旧逐项一致 | 是 |
 | `BUSINESS_CONFIRMED` + `ACCEPTED_DIFFERENCES` | 每个差异有规则、原因和接受人 | 是 |
 | `DIFFERENCES_PENDING` | 存在未签收差异，命令返回失败 | 否 |

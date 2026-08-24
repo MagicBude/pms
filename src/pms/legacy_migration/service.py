@@ -5,6 +5,8 @@
 中断后再次执行会复核并复用已经一致的稳定对象，不生成重复业务链。
 """
 
+from datetime import date
+from decimal import Decimal
 from io import BytesIO
 from uuid import UUID
 
@@ -32,6 +34,9 @@ from pms.tenancy.domain.context import MembershipId, TenantContext, TenantId, Us
 from pms.tenancy.infrastructure.django.models import Membership
 
 BOM_MAPPING = {
+    "level_path": "层级",
+    "assembly_code": "部套代号",
+    "assembly_name": "部套名称",
     "material_code": "物料编码",
     "material_name": "物料名称",
     "specification": "规格型号",
@@ -190,6 +195,7 @@ def _ensure_materials(
                     name=item.name,
                     specification=item.specification,
                     brand=item.brand,
+                    part_attribute=item.part_attribute,
                     unit_id=unit.id,
                     category_id=category.id,
                     procurement_required=item.procurement_required,
@@ -206,6 +212,7 @@ def _material_matches(
         existing.name == item.name
         and existing.specification == item.specification
         and existing.brand == item.brand
+        and existing.part_attribute == item.part_attribute
         and existing.unit_id == unit_id
         and existing.category_id == category_id
         and existing.procurement_required is item.procurement_required
@@ -303,17 +310,20 @@ def _build_bom_workbook(package: LegacySlicePackage) -> bytes:
     worksheet.title = "BOM"
     worksheet.append(list(BOM_MAPPING.values()))
     for row in package.bom.rows:
-        worksheet.append(
-            [
-                row.material_code,
-                row.material_name,
-                row.specification,
-                row.brand,
-                str(row.quantity_per_unit),
-                row.unit_code,
-                row.remark,
-            ]
-        )
+        values = [
+            row.level_path,
+            row.assembly_code,
+            row.assembly_name,
+            row.material_code,
+            row.material_name,
+            row.specification,
+            row.brand,
+            str(row.quantity_per_unit),
+            row.unit_code,
+            row.remark,
+        ]
+        for column, value in enumerate(values, start=1):
+            worksheet.cell(row=row.source_row_number, column=column, value=value)
     stream = BytesIO()
     workbook.save(stream)
     workbook.close()
@@ -330,7 +340,11 @@ def _validate_existing_bom(bom: BomVersion, package: LegacySlicePackage) -> None
         raise LegacyImportConflictError("既有 BOM 行数与迁移包不一致。")
     for expected, row in zip(package.bom.rows, actual, strict=True):
         if (
-            row.material_code.casefold() != expected.material_code.casefold()
+            row.source_row_number != expected.source_row_number
+            or row.level_path != expected.level_path
+            or row.assembly_code != expected.assembly_code
+            or row.assembly_name != expected.assembly_name
+            or row.material_code.casefold() != expected.material_code.casefold()
             or row.material_name != expected.material_name
             or row.specification != expected.specification
             or row.brand != expected.brand
@@ -413,26 +427,129 @@ def _reconcile(
         new_value=project.number,
     )
     builder.compare(
+        check_key="project.customer_code",
+        rule_id="MDM-001",
+        legacy_value=package.project.customer_code,
+        new_value=project.customer.code,
+    )
+    builder.compare(
+        check_key="project.device_model",
+        rule_id="PRJ-001",
+        legacy_value=package.project.device_model,
+        new_value=project.device_model,
+    )
+    builder.compare(
+        check_key="project.dates",
+        rule_id="PRJ-001",
+        legacy_value={
+            "start_date": _date_text(package.project.start_date),
+            "planned_completion_date": _date_text(package.project.planned_completion_date),
+        },
+        new_value={
+            "start_date": _date_text(project.start_date),
+            "planned_completion_date": _date_text(project.planned_completion_date),
+        },
+    )
+    builder.compare(
         check_key="production.units",
         rule_id="BR-PRD-001",
         legacy_value=package.production.production_units,
         new_value=production.production_units,
+    )
+    builder.compare(
+        check_key="production.unit_and_department",
+        rule_id="PRD-001",
+        legacy_value={
+            "production_unit": package.production.production_unit,
+            "receiving_department": package.production.receiving_department,
+        },
+        new_value={
+            "production_unit": production.production_unit,
+            "receiving_department": production.receiving_department,
+        },
+    )
+    actual_materials = tuple(
+        {
+            "code": material.code,
+            "name": material.name,
+            "specification": material.specification,
+            "brand": material.brand,
+            "part_attribute": material.part_attribute,
+            "unit_code": material.unit.code,
+            "category_code": material.category.code,
+            "procurement_required": material.procurement_required,
+        }
+        for material in Material.objects.filter(
+            tenant_id=project.tenant_id,
+            code__in=[item.code for item in package.materials],
+        )
+        .select_related("unit", "category")
+        .order_by("code", "id")
+    )
+    legacy_materials = tuple(
+        {
+            "code": item.code,
+            "name": item.name,
+            "specification": item.specification,
+            "brand": item.brand,
+            "part_attribute": item.part_attribute,
+            "unit_code": item.unit_code,
+            "category_code": item.category_code,
+            "procurement_required": item.procurement_required,
+        }
+        for item in sorted(package.materials, key=lambda value: value.code)
+    )
+    builder.compare(
+        check_key="master_data.materials",
+        rule_id="MDM-003",
+        legacy_value=legacy_materials,
+        new_value=actual_materials,
     )
     actual_bom_rows = list(
         BomLine.objects.filter(bom_version=bom).order_by("source_row_number", "id")
     )
     for expected, actual in zip(package.bom.rows, actual_bom_rows, strict=True):
         builder.compare(
+            check_key=f"bom.row.{actual.source_row_number}.identity",
+            rule_id="BOM-001",
+            legacy_value={
+                "source_row_number": expected.source_row_number,
+                "assembly_code": expected.assembly_code,
+                "assembly_name": expected.assembly_name,
+                "material_code": expected.material_code,
+                "material_name": expected.material_name,
+                "specification": expected.specification,
+                "brand": expected.brand,
+                "unit_code": expected.unit_code,
+                "remark": expected.remark,
+            },
+            new_value={
+                "source_row_number": actual.source_row_number,
+                "assembly_code": actual.assembly_code,
+                "assembly_name": actual.assembly_name,
+                "material_code": actual.material_code,
+                "material_name": actual.material_name,
+                "specification": actual.specification,
+                "brand": actual.brand,
+                "unit_code": actual.unit_text,
+                "remark": actual.remark,
+            },
+        )
+        builder.compare(
             check_key=f"bom.row.{actual.source_row_number}.quantity_per_unit",
             rule_id="BOM-001",
-            legacy_value=str(expected.quantity_per_unit),
-            new_value=str(actual.quantity_per_unit),
+            legacy_value=_decimal_text(expected.quantity_per_unit),
+            new_value=(
+                _decimal_text(actual.quantity_per_unit)
+                if actual.quantity_per_unit is not None
+                else ""
+            ),
         )
     actual_candidates = tuple(
         {
             "source_row_number": line.source_requirement.source_bom_line.source_row_number,
             "material_code": line.material_code_snapshot,
-            "requested_quantity": str(line.requested_quantity),
+            "requested_quantity": _decimal_text(line.requested_quantity),
             "unit_code": line.unit.code,
         }
         for line in PurchaseRequestLine.objects.filter(purchase_request=purchase_request)
@@ -443,7 +560,7 @@ def _reconcile(
         {
             "source_row_number": item.source_row_number,
             "material_code": item.material_code,
-            "requested_quantity": str(item.requested_quantity),
+            "requested_quantity": _decimal_text(item.requested_quantity),
             "unit_code": item.unit_code,
         }
         for item in package.purchase_candidates
@@ -461,3 +578,13 @@ def _reconcile(
         new_value=actual_candidates,
     )
     return builder.build()
+
+
+def _decimal_text(value: Decimal) -> str:
+    """以数据库六位精度比较迁移数量，避免 ``1`` 与 ``1.000000`` 假差异。"""
+    return format(value, ".6f")
+
+
+def _date_text(value: date | None) -> str | None:
+    """把可选业务日期转为稳定 JSON 文本，避免报告依赖编码器魔法。"""
+    return None if value is None else value.isoformat()

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
@@ -116,3 +117,135 @@ def test_unaccepted_difference_writes_report_and_returns_failure(
     assert difference["rule_id"] == "BR-PUR-001"
     assert difference["accepted_by"] is None
     assert difference["reason"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.sqlite
+def test_business_pending_package_requires_explicit_isolated_review_flag(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """真实待确认包默认禁止写库，防止把自动选择误当成业务签收。"""
+    initialize(monkeypatch)
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["sample"] = {
+        "id": "real-pending-review",
+        "kind": "business_pending",
+        "confirmed_by": None,
+    }
+    input_path = tmp_path / "pending.json"
+    input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    report_path = tmp_path / "pending-report.json"
+
+    with (
+        override_settings(DEPLOYMENT_PROFILE="local"),
+        pytest.raises(CommandError, match="--allow-business-pending"),
+    ):
+        call_command(
+            "migrate_legacy_slice",
+            input=str(input_path),
+            report=str(report_path),
+            no_color=True,
+            verbosity=0,
+        )
+
+    assert not Project.objects.exists()
+    assert not report_path.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.sqlite
+@pytest.mark.acceptance
+def test_v2_business_pending_package_imports_only_with_explicit_review_flag(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """显式隔离复核允许保留 v2 溯源字段，但报告仍不能冒充业务签收。"""
+    initialize(monkeypatch)
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["schema_version"] = "pms-legacy-slice-v2"
+    payload["sample"] = {
+        "id": "pending-v2-review",
+        "kind": "business_pending",
+        "confirmed_by": None,
+    }
+    for index, material in enumerate(payload["master_data"]["materials"]):
+        material["part_attribute"] = "采购件" if index == 0 else "加工件"
+    for index, row in enumerate(payload["bom"]["rows"], start=2):
+        row.update(
+            {
+                "source_row_number": index,
+                "level_path": f"1.{index - 1}",
+                "assembly_code": "ASM-TEST",
+                "assembly_name": "虚构测试部套",
+            }
+        )
+    input_path = tmp_path / "pending-v2.json"
+    input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    report_path = tmp_path / "pending-v2-report.json"
+    attachment_root = tmp_path / "attachments"
+    attachment_root.mkdir()
+
+    with override_settings(
+        DEPLOYMENT_PROFILE="local",
+        DATA_DIR=tmp_path,
+        ATTACHMENT_STORAGE_ROOT=attachment_root,
+    ):
+        call_command(
+            "migrate_legacy_slice",
+            input=str(input_path),
+            report=str(report_path),
+            allow_business_pending=True,
+            no_color=True,
+            verbosity=0,
+        )
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["overall_status"] == "MATCHED"
+    assert report["acceptance_scope"] == "BUSINESS_PENDING"
+    material = Material.objects.get(code="MAT-MIG-001")
+    assert material.part_attribute == "采购件"
+    bom = BomVersion.objects.get()
+    assert list(
+        bom.lines.order_by("source_row_number").values_list(
+            "source_row_number", "assembly_code", "assembly_name"
+        )
+    ) == [
+        (2, "ASM-TEST", "虚构测试部套"),
+        (3, "ASM-TEST", "虚构测试部套"),
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.sqlite
+def test_business_pending_flag_still_rejects_formal_data_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """显式开关不是正式库通行证，默认 data 目录仍必须硬拒绝。"""
+    initialize(monkeypatch)
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["sample"] = {
+        "id": "pending-formal-data",
+        "kind": "business_pending",
+        "confirmed_by": None,
+    }
+    input_path = tmp_path / "pending-formal.json"
+    input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    report_path = tmp_path / "pending-formal-report.json"
+
+    with (
+        override_settings(
+            DEPLOYMENT_PROFILE="local",
+            DATA_DIR=settings.BASE_DIR / "data",
+        ),
+        pytest.raises(CommandError, match="独立 PMS_DATA_DIR"),
+    ):
+        call_command(
+            "migrate_legacy_slice",
+            input=str(input_path),
+            report=str(report_path),
+            allow_business_pending=True,
+            no_color=True,
+            verbosity=0,
+        )
+
+    assert not Project.objects.exists()
+    assert not report_path.exists()

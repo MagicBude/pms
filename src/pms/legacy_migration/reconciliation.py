@@ -120,11 +120,11 @@ class ReconciliationBuilder:
             sample_id=self._sample.id,
             sample_kind=self._sample.kind,
             sample_confirmed_by=self._sample.confirmed_by,
-            acceptance_scope=(
-                "BUSINESS_CONFIRMED"
-                if self._sample.kind == "business_confirmed"
-                else "TECHNICAL_ONLY"
-            ),
+            acceptance_scope={
+                "synthetic": "TECHNICAL_ONLY",
+                "business_pending": "BUSINESS_PENDING",
+                "business_confirmed": "BUSINESS_CONFIRMED",
+            }[self._sample.kind],
             overall_status=overall,
             generated_at=self._clock().isoformat(),
             checks=tuple(self._checks),
