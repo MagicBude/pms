@@ -1,6 +1,6 @@
 # 本机正式启动器
 
-状态：F-011 本地候选基线，等待 GitHub Actions 验证
+状态：F-011 已验证基线（Windows 本机与 GitHub Actions Linux）
 
 ## 1. 用途与边界
 
