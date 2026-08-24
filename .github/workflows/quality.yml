@@ -157,7 +157,21 @@ jobs:
           uv run python manage.py initialize_pms --no-color
           unset PMS_INITIAL_ADMIN_PASSWORD
           uv run python manage.py initialize_pms --no-color
-          uv run pytest tests/integration/identity tests/integration/tenancy tests/integration/authorization tests/integration/audit tests/integration/platform tests/integration/attachments tests/integration/bootstrap tests/integration/business tests/integration/web --no-cov
+          # F-010 备份和 F-011 本机启动器只支持 local + SQLite。它们仍由前一个
+          # 本机烟雾步骤和默认 SQLite 全量测试覆盖；PostgreSQL 作业保留其余平台、
+          # 业务、安全边界及标记为 postgresql 的真实并发案例。
+          uv run pytest \
+            tests/integration/identity \
+            tests/integration/tenancy \
+            tests/integration/authorization \
+            tests/integration/audit \
+            tests/integration/platform \
+            tests/integration/attachments \
+            tests/integration/bootstrap \
+            tests/integration/business \
+            tests/integration/web \
+            -m "not sqlite" \
+            --no-cov
 
       - name: Smoke test PostgreSQL 18 server startup
         env:

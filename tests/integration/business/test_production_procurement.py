@@ -479,10 +479,17 @@ def test_concurrent_submissions_receive_distinct_tenant_numbers(
     barrier = Barrier(2)
 
     def submit_after_barrier(request_id: UUID) -> str:
-        barrier.wait()
-        result = procurement_service().submit(context=context, request_id=request_id)
-        assert result.request_number is not None
-        return result.request_number
+        # Django 为每个工作线程维护独立连接。线程池退出不会替 pytest 主线程
+        # 回收这些连接；若不显式关闭，PostgreSQL 会阻止测试库 teardown，并把
+        # 本来成功的并发验收变成带残留会话的警告。
+        close_old_connections()
+        try:
+            barrier.wait()
+            result = procurement_service().submit(context=context, request_id=request_id)
+            assert result.request_number is not None
+            return result.request_number
+        finally:
+            close_old_connections()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         numbers = set(executor.map(submit_after_barrier, (first_request.id, second_request.id)))
