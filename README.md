@@ -26,6 +26,19 @@ uv sync --locked --all-groups
 [本机正式启动器](docs/deployment/local-launcher.md)打开工作台；首版页面操作顺序见
 [本机工作台操作路径](docs/product/local-workbench.md)。
 
+## Windows 双击使用
+
+在已经安装 uv 的 Windows 电脑上：
+
+1. 新电脑第一次使用，双击仓库根目录的 `PMS-首次安装.bat`；它会安装锁定的 Python、同步
+   依赖、迁移数据库、安全提示设置 admin 密码，并在成功后打开 PMS。
+2. 以后日常使用只需双击 `PMS-启动.bat`，保持弹出的终端窗口打开；结束时在窗口中按
+   `Ctrl+C`。
+
+两个 BAT 都按自身位置寻找仓库和 `data/`，不写死盘符或 `D:\Github\pms`。换电脑时仍需先
+安装 uv，并完整复制或克隆仓库；需要保留业务数据时还必须按备份恢复文档迁移 `data/`，不能只
+复制源码。
+
 ## 阅读顺序
 
 1. [当前项目状态](PROJECT_STATUS.md)

@@ -8,19 +8,44 @@
 单进程、单 worker、无自动重载，并且只监听 IP loopback。它不支持内网或云端档案，也不替代
 首次安装、数据库迁移、备份和升级流程。
 
-当前仍需从仓库或源码安装目录执行命令。桌面快捷方式、安装包、内置 Python 运行时和系统托盘
-属于后续交付包装，不在 F-011 范围内。
+Windows 已提供仓库根目录双击 BAT，包装首次安装和日常启动命令；它仍属于源码级入口，需要
+仓库与 uv。桌面快捷方式、独立安装包、内置 Python 运行时和系统托盘属于后续交付包装。
 
 ## 2. 启动前条件
 
-首次使用必须先完成：
+### 2.1 Windows 推荐方式
+
+新电脑已经安装 uv 后，双击仓库根目录的 `PMS-首次安装.bat`。BAT 使用自身目录定位仓库，不
+依赖固定盘符，并依次执行：
+
+1. 安装或确认 Python 3.14.7；
+2. 按 `uv.lock` 同步全部依赖组；
+3. 执行数据库迁移；
+4. 通过 PowerShell 隐藏输入初始 admin 密码并显式初始化；
+5. 检查成功后调用与 `PMS-启动.bat` 相同的正式启动脚本打开网站。
+
+PowerShell 的 `ExecutionPolicy Bypass` 仅用于本次子进程执行仓库内受版本控制的初始化脚本，
+不会修改电脑的永久执行策略，也不会下载后直接执行未知脚本。密码只在初始化子进程环境中短暂
+存在，成功或失败都会清除。
+
+首次安装 BAT 不能在完全空白的 Windows 上自行取得 uv。uv 是唯一外部前置工具；安装 uv 后，
+Python 和项目依赖由锁定命令完成。换电脑并保留旧数据时，应使用正式备份恢复流程迁移数据，
+不能把“首次安装”当作恢复工具。
+
+### 2.2 手工方式
+
+需要排查或自动化时，可以在仓库根目录手工完成同样步骤：
 
 ```powershell
 uv sync --locked --all-groups
 uv run python manage.py migrate --noinput
-$env:PMS_INITIAL_ADMIN_PASSWORD = Read-Host "请输入初始管理员密码"
-uv run python manage.py initialize_pms
-Remove-Item Env:PMS_INITIAL_ADMIN_PASSWORD
+$initialPassword = Read-Host "请输入初始管理员密码" -AsSecureString
+$env:PMS_INITIAL_ADMIN_PASSWORD = [Net.NetworkCredential]::new("", $initialPassword).Password
+try {
+    uv run python manage.py initialize_pms
+} finally {
+    Remove-Item Env:PMS_INITIAL_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+}
 ```
 
 启动器不会自动迁移，也不会隐式创建管理员。这两项会改变持久数据或需要临时秘密，必须由使用者
@@ -35,7 +60,10 @@ Remove-Item Env:PMS_INITIAL_ADMIN_PASSWORD
 
 ## 3. 正式启动与停止
 
-在仓库根目录运行：
+Windows 日常使用推荐双击仓库根目录的 `PMS-启动.bat`。BAT 会固定使用自己旁边的 `data/`、
+loopback 地址和 8000 端口，并调用下述正式启动器；仓库换盘符或父目录后不需要修改脚本。
+
+命令行方式是在仓库根目录运行：
 
 ```powershell
 uv run python manage.py launch_local

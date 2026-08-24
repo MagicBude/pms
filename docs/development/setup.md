@@ -38,6 +38,10 @@ uv sync --locked --all-groups
 
 ## 4. 本机启动
 
+Windows 日常使用不需要记命令：新电脑第一次双击仓库根目录的 `PMS-首次安装.bat`，以后双击
+`PMS-启动.bat`。两个文件会按自身位置定位仓库，不依赖固定盘符；详细边界见
+[本机正式启动器](../deployment/local-launcher.md)。下面的命令主要供开发和故障排查使用。
+
 开发调试可执行：
 
 ```powershell
