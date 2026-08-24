@@ -11,16 +11,19 @@ def read_script(relative_path: str) -> str:
 
 
 def test_batch_entrypoints_locate_the_repository_without_fixed_drive() -> None:
-    """换盘符或父目录后，两个 BAT 仍以自身位置作为 PMS 根目录。"""
+    """换盘符或父目录后，三个 BAT 仍以自身位置作为 PMS 根目录。"""
     first_install = read_script("PMS-首次安装.bat")
     daily_start = read_script("PMS-启动.bat")
-    combined = first_install + daily_start
+    legacy_extract = read_script("PMS-提取旧数据.bat")
+    combined = first_install + daily_start + legacy_extract
 
     assert 'cd /d "%~dp0"' in first_install
     assert 'cd /d "%~dp0"' in daily_start
+    assert 'cd /d "%~dp0"' in legacy_extract
     assert "%~dp0scripts\\windows\\initialize-pms.ps1" in first_install
     assert "%~dp0scripts\\windows\\start-pms.ps1" in first_install
     assert "%~dp0scripts\\windows\\start-pms.ps1" in daily_start
+    assert "%~dp0scripts\\windows\\extract-legacy-data.ps1" in legacy_extract
     assert 'cd /d "D:\\Github\\pms"' not in combined
     assert all(character.isascii() for character in combined)
 
@@ -42,3 +45,15 @@ def test_first_install_and_daily_start_keep_the_supported_command_path() -> None
     assert '$env:PMS_DEBUG = "false"' in daily_start
     assert 'Join-Path $repositoryRoot "data"' in daily_start
     assert '$env:PYTHONIOENCODING = "utf-8"' in daily_start
+
+
+def test_legacy_extract_script_uses_ignored_sources_and_explicit_sensitive_flag() -> None:
+    """双击提取只读旧目录，并显式声明真实敏感数据范围。"""
+    script = read_script("scripts/windows/extract-legacy-data.ps1")
+
+    assert 'Join-Path $repositoryRoot ".internal\\legacy-pms"' in script
+    assert 'Join-Path $repositoryRoot ".internal\\migration"' in script
+    assert "manage.py extract_legacy_data" in script
+    assert "--include-restricted" in script
+    assert 'Get-Date -Format "yyyyMMdd-HHmmss"' in script
+    assert "cd D:\\Github\\pms" not in script

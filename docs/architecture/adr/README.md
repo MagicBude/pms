@@ -10,6 +10,7 @@ ADR 记录不可轻易逆转或影响多个模块的技术决定。状态为“�
 | [ADR-0002](ADR-0002-database-and-multi-tenancy.md) | 已接受 | SQLite/PostgreSQL、共享表多租户和事务 |
 | [ADR-0003](ADR-0003-attachment-storage.md) | 已接受 | 附件元数据、存储适配器和上传安全 |
 | [ADR-0004](ADR-0004-deployment-profiles.md) | 已接受 | 本机、内网和云端部署形态 |
+| [ADR-0005](ADR-0005-data-portability-and-legacy-extraction.md) | 已接受 | 备份恢复、旧数据只读提取和租户导出边界 |
 
 ## 状态规则
 

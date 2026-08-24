@@ -8,6 +8,7 @@
 - [旧系统功能清单](../product/legacy-feature-inventory.md)：第一轮静态提取结果。
 - [业务规则基线](../product/business-rules.md)：已确认、推断和建议规则。
 - [数据迁移总策略](data-migration-strategy.md)：只读提取、受控包、幂等、对账和签收规则。
+- [旧 PMS 核心数据只读提取](legacy-raw-extraction.md)：`.xlsb` 白名单、JSONL 原始包、安全边界和首批结果。
 - [SLICE-001 受控迁移](slice-001-controlled-migration.md)：首切片 JSON 契约、命令和报告口径。
 
 ## 迁移对象

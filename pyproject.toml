@@ -32,6 +32,9 @@ test = [
 security = [
     "pip-audit>=2.9,<3",
 ]
+migration = [
+    "python-calamine>=0.8.2,<0.9",
+]
 
 [tool.ruff]
 target-version = "py314"

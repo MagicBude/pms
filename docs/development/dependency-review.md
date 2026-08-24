@@ -20,6 +20,7 @@
 | --- | --- | --- | --- | --- | --- |
 | Django | runtime | Web、ORM、迁移、认证、模板和表单 | FastAPI/SQLAlchemy 需要拼装更多基础能力；已由 ADR-0001 选择 Django 5.2 LTS | 锁定 5.2.x；跟踪安全公告和 LTS 支持期；F-002 后运行部署检查 | BSD-3-Clause |
 | openpyxl | runtime | 后续只读解析 `.xlsx`/`.xlsm` BOM | pandas 对工作簿结构控制较弱且依赖更重；LibreOffice 自动化会执行更复杂外部行为 | 上传仍视为不可信；不执行 VBA、公式或外部链接；F-001 仅锁定不解析 | MIT |
+| python-calamine | migration | 只读解析旧 `.xls/.xlsx/.xlsm/.xlsb` 核心数据库 | Excel COM 依赖 Office 并扩大宏/加载项风险；手工另存会失去可重复性；Calamine 可跨平台统一读取旧格式 | 仅进入 migration 依赖组；白名单源和精确表头；不启动 Excel、不执行 VBA/公式；当前为 Beta 且单维护者，锁定 0.8.x 并保留源哈希与对账 | MIT |
 | Uvicorn | runtime | 后续提供正式 ASGI 运行入口 | Django `runserver` 不可交付；Gunicorn 是服务器进程管理补充而不是本机替代 | F-002 才创建 ASGI；部署时限制监听地址、代理和 worker | BSD-3-Clause |
 | psycopg | server | PostgreSQL 18 驱动 | psycopg2 是旧一代驱动；其他数据库驱动不符合已接受 PostgreSQL 方案 | binary extra 用于可重复开发和 CI；正式服务器安装方式在部署批次复审 | LGPL-3.0-only |
 | Ruff | dev | F-003 格式化和 Lint | Black + isort + Flake8 工具更多、规则易漂移 | F-001 只锁定；F-003 固定规则并执行 | MIT |
@@ -78,10 +79,11 @@
 | pytest-cov | 7.1.0 |
 | pip-audit | 2.10.1 |
 | types-openpyxl | 3.1.5.20260807 |
+| python-calamine | 0.8.2 |
 
 ### 6.2 导入和构建
 
-- `pms`、Django、openpyxl、Uvicorn 和 psycopg 在 CPython 3.14.7 中导入成功；
+- `pms`、Django、openpyxl、python-calamine、Uvicorn 和 psycopg 在 CPython 3.14.7 中导入成功；
 - uv_build 成功生成 `pms-0.0.0.tar.gz` 和 `pms-0.0.0-py3-none-any.whl`；
 - `0.0.0` 是正式版本策略确定前的未发布工程占位符，不代表已经发布产品版本；
 - 构建产物位于被 Git 忽略的 `dist/`，本批次不发布制品。
