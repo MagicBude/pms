@@ -41,6 +41,34 @@ class CodeNameForm(StyledForm):
         self.apply_styles()
 
 
+class CustomerForm(CodeNameForm):
+    """客户组织资料表单；可选税务和银行字段只交给应用服务处理。"""
+
+    short_name = forms.CharField(label="客户简称", max_length=100, required=False)
+    tax_identifier = forms.CharField(label="客户税号", max_length=64, required=False)
+    address = forms.CharField(label="客户地址", max_length=300, required=False)
+    phone = forms.CharField(label="联系电话", max_length=64, required=False)
+    bank_name = forms.CharField(label="开户行", max_length=200, required=False)
+    bank_account = forms.CharField(label="银行账号", max_length=64, required=False)
+    bank_routing_number = forms.CharField(label="银行行号", max_length=64, required=False)
+
+
+class SupplierForm(CodeNameForm):
+    """供应商完整档案表单；列表页不会展示税号和银行字段。"""
+
+    short_name = forms.CharField(label="供应商简称", max_length=100, required=False)
+    contact_person = forms.CharField(label="联系人", max_length=100, required=False)
+    phone = forms.CharField(label="联系电话", max_length=64, required=False)
+    address = forms.CharField(label="地址", max_length=300, required=False)
+    tax_identifier = forms.CharField(label="税号", max_length=64, required=False)
+    bank_routing_number = forms.CharField(label="银行行号", max_length=64, required=False)
+    bank_name = forms.CharField(label="开户银行", max_length=200, required=False)
+    bank_account = forms.CharField(label="银行账号", max_length=64, required=False)
+    service_description = forms.CharField(label="服务说明", max_length=200, required=False)
+    english_name = forms.CharField(label="英文名称", max_length=200, required=False)
+    english_address = forms.CharField(label="英文地址", max_length=300, required=False)
+
+
 class MaterialForm(StyledForm):
     code = forms.CharField(label="物料编码", max_length=64)
     name = forms.CharField(label="物料名称", max_length=200)

@@ -15,7 +15,13 @@ from pms.audit.infrastructure.django.models import AuditLog
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.models import MembershipRole, Role
 from pms.bom.infrastructure.django.models import BomVersion
-from pms.master_data.infrastructure.django.models import Customer, Material, MaterialCategory, Unit
+from pms.master_data.infrastructure.django.models import (
+    Customer,
+    Material,
+    MaterialCategory,
+    Supplier,
+    Unit,
+)
 from pms.procurement.domain.request import PurchaseRequestStatus
 from pms.procurement.infrastructure.django.models import PurchaseRequest
 from pms.production.domain.release import ProductionStatus
@@ -107,6 +113,22 @@ def test_browser_workflow_reaches_submitted_purchase_request(
         client.post("/customers/new/", {"code": "CUS-UI", "name": "界面示例客户"}).status_code
         == 302
     )
+    assert (
+        client.post(
+            "/suppliers/new/",
+            {
+                "code": "SUP-UI",
+                "name": "界面示例供应商",
+                "short_name": "示例供方",
+                "contact_person": "界面联系人",
+                "phone": "000-0000",
+            },
+        ).status_code
+        == 302
+    )
+    assert Supplier.objects.filter(code="SUP-UI").exists()
+    supplier_page = client.get("/suppliers/").content.decode()
+    assert "界面示例供应商" in supplier_page
     assert client.post("/units/new/", {"code": "PCS", "name": "件"}).status_code == 302
     assert client.post("/categories/new/", {"code": "STD", "name": "标准件"}).status_code == 302
     customer = Customer.objects.get(code="CUS-UI")

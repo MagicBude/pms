@@ -14,6 +14,7 @@ WRITE_PERMISSIONS = frozenset(
         PermissionCode.CONFIGURATION_MANAGE,
         PermissionCode.MEMBERSHIP_MANAGE,
         PermissionCode.CUSTOMER_MANAGE,
+        PermissionCode.SUPPLIER_MANAGE,
         PermissionCode.MATERIAL_MANAGE,
         PermissionCode.PROJECT_CREATE,
         PermissionCode.PROJECT_EDIT,
@@ -54,6 +55,7 @@ EXPECTED_WRITE_GRANTS: dict[RoleCode, dict[PermissionCode, PermissionScope]] = {
         PermissionCode.BOM_CANCEL: PermissionScope.RELATED,
     },
     RoleCode.REQUESTER: {
+        PermissionCode.SUPPLIER_MANAGE: PermissionScope.TENANT,
         PermissionCode.PRODUCTION_RELEASE_CREATE: PermissionScope.TENANT,
         PermissionCode.PRODUCTION_RELEASE_RELEASE: PermissionScope.TENANT,
         PermissionCode.PRODUCTION_RELEASE_CANCEL: PermissionScope.TENANT,

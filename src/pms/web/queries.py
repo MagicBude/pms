@@ -18,7 +18,13 @@ from pms.authorization.domain.permissions import PermissionCode, PermissionScope
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.bom.domain.validation import ERROR_MESSAGES, BomLineErrorCode
 from pms.bom.infrastructure.django.models import BomLine, BomVersion
-from pms.master_data.infrastructure.django.models import Customer, Material, MaterialCategory, Unit
+from pms.master_data.infrastructure.django.models import (
+    Customer,
+    Material,
+    MaterialCategory,
+    Supplier,
+    Unit,
+)
 from pms.procurement.infrastructure.django.models import PurchaseRequest, PurchaseRequestLine
 from pms.production.infrastructure.django.models import ProductionRelease, ProductionRequirement
 from pms.projects.infrastructure.django.models import Project
@@ -62,6 +68,19 @@ class CustomerItem:
     id: UUID
     code: str
     name: str
+    is_active: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SupplierItem:
+    """供应商普通列表只展示联系与服务摘要，不暴露银行和税务资料。"""
+
+    id: UUID
+    code: str
+    name: str
+    contact_person: str
+    phone: str
+    service_description: str
     is_active: bool
 
 
@@ -227,6 +246,24 @@ def customers(context: TenantContext) -> tuple[CustomerItem, ...]:
         rows = rows.filter(projects__owner_membership_id=context.membership_id).distinct()
     return tuple(
         CustomerItem(id=row.id, code=row.code, name=row.name, is_active=row.is_active)
+        for row in rows.order_by("code", "id")
+    )
+
+
+def suppliers(context: TenantContext) -> tuple[SupplierItem, ...]:
+    """返回当前租户供应商；供应商权限只定义 tenant 范围。"""
+    _scope(context, PermissionCode.SUPPLIER_VIEW)
+    rows = Supplier.objects.filter(tenant_id=context.tenant_id)
+    return tuple(
+        SupplierItem(
+            id=row.id,
+            code=row.code,
+            name=row.name,
+            contact_person=row.contact_person,
+            phone=row.phone,
+            service_description=row.service_description,
+            is_active=row.is_active,
+        )
         for row in rows.order_by("code", "id")
     )
 

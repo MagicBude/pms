@@ -11,6 +11,7 @@ from pms.master_data.infrastructure.django.models import (
     Customer,
     Material,
     MaterialCategory,
+    Supplier,
     Unit,
 )
 
@@ -26,7 +27,19 @@ class DjangoMasterDataRepository:
     """所有查询都显式带 tenant，跨租户外键按不存在处理。"""
 
     def create_customer(
-        self, *, tenant_id: UUID, code: str, name: str, normalized_name: str
+        self,
+        *,
+        tenant_id: UUID,
+        code: str,
+        name: str,
+        normalized_name: str,
+        short_name: str,
+        tax_identifier: str,
+        address: str,
+        phone: str,
+        bank_name: str,
+        bank_account: str,
+        bank_routing_number: str,
     ) -> CreatedMasterData:
         return self._create_simple(
             Customer,
@@ -34,6 +47,51 @@ class DjangoMasterDataRepository:
             code=code,
             name=name,
             normalized_name=normalized_name,
+            short_name=short_name,
+            tax_identifier=tax_identifier,
+            address=address,
+            phone=phone,
+            bank_name=bank_name,
+            bank_account=bank_account,
+            bank_routing_number=bank_routing_number,
+        )
+
+    def create_supplier(
+        self,
+        *,
+        tenant_id: UUID,
+        code: str,
+        name: str,
+        normalized_name: str,
+        short_name: str,
+        contact_person: str,
+        phone: str,
+        address: str,
+        tax_identifier: str,
+        bank_routing_number: str,
+        bank_name: str,
+        bank_account: str,
+        service_description: str,
+        english_name: str,
+        english_address: str,
+    ) -> CreatedMasterData:
+        return self._create_simple(
+            Supplier,
+            tenant_id=tenant_id,
+            code=code,
+            name=name,
+            normalized_name=normalized_name,
+            short_name=short_name,
+            contact_person=contact_person,
+            phone=phone,
+            address=address,
+            tax_identifier=tax_identifier,
+            bank_routing_number=bank_routing_number,
+            bank_name=bank_name,
+            bank_account=bank_account,
+            service_description=service_description,
+            english_name=english_name,
+            english_address=english_address,
         )
 
     def create_unit(
@@ -97,12 +155,13 @@ class DjangoMasterDataRepository:
 
     @staticmethod
     def _create_simple(
-        model: type[Customer] | type[Unit] | type[MaterialCategory],
+        model: type[Customer] | type[Supplier] | type[Unit] | type[MaterialCategory],
         *,
         tenant_id: UUID,
         code: str,
         name: str,
         normalized_name: str,
+        **fields: str,
     ) -> CreatedMasterData:
         try:
             row = model.objects.create(
@@ -110,6 +169,7 @@ class DjangoMasterDataRepository:
                 code=code,
                 name=name,
                 normalized_name=normalized_name,
+                **fields,
             )
         except IntegrityError as error:
             raise DuplicateMasterDataError("当前租户已存在相同代码或名称。") from error

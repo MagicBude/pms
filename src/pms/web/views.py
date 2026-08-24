@@ -22,7 +22,11 @@ from pms.authorization.application.authorize import PermissionDeniedError, autho
 from pms.authorization.domain.permissions import PermissionCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.bom.application.service import ImportBomCommand
-from pms.master_data.application.service import CreateMaterialCommand
+from pms.master_data.application.service import (
+    CreateCustomerCommand,
+    CreateMaterialCommand,
+    CreateSupplierCommand,
+)
 from pms.platform.business_services import (
     attachment_service,
     bom_service,
@@ -43,11 +47,13 @@ from pms.web.forms import (
     BomImportForm,
     CancelForm,
     CodeNameForm,
+    CustomerForm,
     LoginForm,
     MaterialAssignmentForm,
     MaterialForm,
     ProductionForm,
     ProjectForm,
+    SupplierForm,
 )
 
 EXPECTED_USER_ERRORS = (ValueError, LookupError, PermissionError)
@@ -105,13 +111,22 @@ def customer_list_view(request: HttpRequest) -> HttpResponse:
 @login_required
 def customer_create_view(request: HttpRequest) -> HttpResponse:
     context = _context(request)
-    form = CodeNameForm(request.POST or None)
+    form = CustomerForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
             master_data_service().create_customer(
                 context=context,
-                code=str(form.cleaned_data["code"]),
-                name=str(form.cleaned_data["name"]),
+                command=CreateCustomerCommand(
+                    code=str(form.cleaned_data["code"]),
+                    name=str(form.cleaned_data["name"]),
+                    short_name=str(form.cleaned_data["short_name"]),
+                    tax_identifier=str(form.cleaned_data["tax_identifier"]),
+                    address=str(form.cleaned_data["address"]),
+                    phone=str(form.cleaned_data["phone"]),
+                    bank_name=str(form.cleaned_data["bank_name"]),
+                    bank_account=str(form.cleaned_data["bank_account"]),
+                    bank_routing_number=str(form.cleaned_data["bank_routing_number"]),
+                ),
             )
         except EXPECTED_USER_ERRORS as error:
             record_expected_error(
@@ -126,6 +141,56 @@ def customer_create_view(request: HttpRequest) -> HttpResponse:
             messages.success(request, "客户已创建。")
             return redirect("web-customer-list")
     return render(request, "web/simple_form.html", {"form": form, "title": "新建客户"})
+
+
+@require_GET
+@login_required
+def supplier_list_view(request: HttpRequest) -> HttpResponse:
+    return render(
+        request,
+        "web/supplier_list.html",
+        {"suppliers": queries.suppliers(_context(request))},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+@login_required
+def supplier_create_view(request: HttpRequest) -> HttpResponse:
+    context = _context(request)
+    form = SupplierForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            master_data_service().create_supplier(
+                context=context,
+                command=CreateSupplierCommand(
+                    code=str(form.cleaned_data["code"]),
+                    name=str(form.cleaned_data["name"]),
+                    short_name=str(form.cleaned_data["short_name"]),
+                    contact_person=str(form.cleaned_data["contact_person"]),
+                    phone=str(form.cleaned_data["phone"]),
+                    address=str(form.cleaned_data["address"]),
+                    tax_identifier=str(form.cleaned_data["tax_identifier"]),
+                    bank_routing_number=str(form.cleaned_data["bank_routing_number"]),
+                    bank_name=str(form.cleaned_data["bank_name"]),
+                    bank_account=str(form.cleaned_data["bank_account"]),
+                    service_description=str(form.cleaned_data["service_description"]),
+                    english_name=str(form.cleaned_data["english_name"]),
+                    english_address=str(form.cleaned_data["english_address"]),
+                ),
+            )
+        except EXPECTED_USER_ERRORS as error:
+            record_expected_error(
+                context=context,
+                action="supplier.create",
+                object_type="supplier",
+                object_id=None,
+                error=error,
+            )
+            form.add_error(None, str(error))
+        else:
+            messages.success(request, "供应商已创建。")
+            return redirect("web-supplier-list")
+    return render(request, "web/simple_form.html", {"form": form, "title": "新建供应商"})
 
 
 @require_GET

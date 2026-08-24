@@ -13,9 +13,13 @@ from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.authorization.infrastructure.django.models import MembershipRole, Role
 from pms.bom.infrastructure.django.repository import DjangoBomProjectDownstreamLookup
-from pms.master_data.application.service import CreateMaterialCommand, MasterDataService
+from pms.master_data.application.service import (
+    CreateMaterialCommand,
+    CreateSupplierCommand,
+    MasterDataService,
+)
 from pms.master_data.domain.values import DuplicateMasterDataError
-from pms.master_data.infrastructure.django.models import Customer, Material
+from pms.master_data.infrastructure.django.models import Customer, Material, Supplier
 from pms.master_data.infrastructure.django.repository import (
     DjangoMasterDataRepository,
     DjangoTransactionManager,
@@ -34,6 +38,7 @@ from pms.projects.infrastructure.django.repository import (
 )
 from pms.tenancy.domain.context import MembershipId, TenantContext, TenantId, UserId
 from pms.tenancy.infrastructure.django.models import Membership, Tenant
+from pms.web import queries
 
 TEST_PASSWORD = "P2-01-only-Strong!5927"
 
@@ -135,6 +140,70 @@ def test_admin_creates_tenant_scoped_master_data_with_audit(
         ).count()
         == 4
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.acceptance
+def test_supplier_is_tenant_scoped_and_sensitive_fields_stay_out_of_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MDM-002：管理员可建完整供应商，审计只保存稳定代码。"""
+    context = initialize_admin_context(monkeypatch)
+    created = master_data_service().create_supplier(
+        context=context,
+        command=CreateSupplierCommand(
+            code="sup-001",
+            name="虚构供应商",
+            short_name="虚构供方",
+            contact_person="测试联系人",
+            phone="000-0000",
+            tax_identifier="TEST-TAX-ONLY",
+            bank_name="测试银行",
+            bank_account="TEST-ACCOUNT-ONLY",
+        ),
+    )
+
+    supplier = Supplier.objects.get(id=created.id, tenant_id=context.tenant_id)
+    assert supplier.code == "SUP-001"
+    assert supplier.short_name == "虚构供方"
+    audit = AuditLog.objects.get(action="supplier.created", object_id=str(created.id))
+    assert audit.summary == {"code": "SUP-001"}
+    assert "TEST-ACCOUNT-ONLY" not in str(audit.summary)
+
+    other = create_second_context(role=RoleCode.TENANT_ADMIN, suffix="supplier-other")
+    master_data_service().create_supplier(
+        context=other,
+        command=CreateSupplierCommand(code="SUP-001", name="另一租户虚构供应商"),
+    )
+    assert Supplier.objects.filter(code="SUP-001").count() == 2
+    assert {item.id for item in queries.suppliers(context)} == {created.id}
+
+
+@pytest.mark.django_db
+def test_requester_can_manage_supplier_but_project_manager_cannot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """供应商由采购申请角色维护，项目负责人只有租户级查看能力。"""
+    admin = initialize_admin_context(monkeypatch)
+    tenant = Tenant.objects.get(id=admin.tenant_id)
+    requester = create_member_context(
+        tenant=tenant, role=RoleCode.REQUESTER, suffix="supplier-requester"
+    )
+    manager = create_member_context(
+        tenant=tenant, role=RoleCode.PROJECT_MANAGER, suffix="supplier-manager"
+    )
+    service = master_data_service()
+
+    service.create_supplier(
+        context=requester,
+        command=CreateSupplierCommand(code="SUP-REQUEST", name="申请角色供应商"),
+    )
+    with pytest.raises(PermissionDeniedError):
+        service.create_supplier(
+            context=manager,
+            command=CreateSupplierCommand(code="SUP-DENIED", name="拒绝供应商"),
+        )
+    assert not Supplier.objects.filter(code="SUP-DENIED").exists()
 
 
 @pytest.mark.django_db

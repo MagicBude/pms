@@ -9,6 +9,8 @@ DEFAULT_PERMISSION_NAMES: dict[P, str] = {
     P.MEMBERSHIP_MANAGE: "管理租户成员与角色",
     P.CUSTOMER_VIEW: "查看客户",
     P.CUSTOMER_MANAGE: "维护客户",
+    P.SUPPLIER_VIEW: "查看供应商",
+    P.SUPPLIER_MANAGE: "维护供应商",
     P.MATERIAL_VIEW: "查看物料与基础资料",
     P.MATERIAL_MANAGE: "维护物料与基础资料",
     P.PROJECT_VIEW: "查看项目",
@@ -48,6 +50,7 @@ DEFAULT_ROLE_GRANTS: dict[R, dict[P, S]] = {
     R.PROJECT_MANAGER: {
         P.CUSTOMER_VIEW: S.TENANT,
         P.CUSTOMER_MANAGE: S.TENANT,
+        P.SUPPLIER_VIEW: S.TENANT,
         P.MATERIAL_VIEW: S.TENANT,
         P.PROJECT_VIEW: S.RELATED,
         P.PROJECT_CREATE: S.TENANT,
@@ -81,6 +84,8 @@ DEFAULT_ROLE_GRANTS: dict[R, dict[P, S]] = {
     },
     R.REQUESTER: {
         P.CUSTOMER_VIEW: S.RELATED,
+        P.SUPPLIER_VIEW: S.TENANT,
+        P.SUPPLIER_MANAGE: S.TENANT,
         P.MATERIAL_VIEW: S.TENANT,
         P.PROJECT_VIEW: S.RELATED,
         P.BOM_VIEW: S.RELATED,

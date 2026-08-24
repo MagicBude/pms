@@ -1,6 +1,6 @@
 # 角色与权限矩阵
 
-状态：已接受（SLICE-001 范围）
+状态：已接受（SLICE-001 + Phase 3A 供应商主数据范围）
 
 ## 1. 权限原则
 
@@ -29,6 +29,7 @@
 | `configuration.manage` | 管理编号、时区和基础字典 |
 | `membership.manage` | 管理本租户成员与角色 |
 | `customer.view` / `customer.manage` | 查看或维护客户 |
+| `supplier.view` / `supplier.manage` | 查看或维护供应商；普通查看不含银行和税务详情 |
 | `material.view` / `material.manage` | 查看或维护物料、单位和分类 |
 | `project.view` / `project.create` / `project.edit` | 查看、创建或编辑项目草稿 |
 | `project.activate` / `project.close` / `project.cancel` | 执行项目状态迁移 |
@@ -49,6 +50,8 @@
 | `membership.manage` | ✓ | — | — | — | — |
 | `customer.view` | ✓ | ✓ | R | R | R |
 | `customer.manage` | ✓ | ✓ | — | — | — |
+| `supplier.view` | ✓ | ✓ | — | ✓ | — |
+| `supplier.manage` | ✓ | — | — | ✓ | — |
 | `material.view` | ✓ | ✓ | ✓ | ✓ | R |
 | `material.manage` | ✓ | — | ✓ | — | — |
 | `project.view` | ✓ | R | R | R | R |
@@ -96,4 +99,3 @@ P0 本机版只有一个默认管理员时，上述范围仍通过同一授权�
 - 每个租户级资源至少有跨租户不可见、不可直接 ID 读取、不可修改三个反向测试。
 - 管理员不能越过当前租户边界；跨租户平台运营权限不属于 P0。
 - 删除角色或停用成员后，已有会话的权限必须按安全策略及时失效。
-

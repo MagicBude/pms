@@ -10,6 +10,8 @@ class PermissionCode(StrEnum):
     MEMBERSHIP_MANAGE = "membership.manage"
     CUSTOMER_VIEW = "customer.view"
     CUSTOMER_MANAGE = "customer.manage"
+    SUPPLIER_VIEW = "supplier.view"
+    SUPPLIER_MANAGE = "supplier.manage"
     MATERIAL_VIEW = "material.view"
     MATERIAL_MANAGE = "material.manage"
     PROJECT_VIEW = "project.view"

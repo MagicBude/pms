@@ -1,4 +1,4 @@
-"""客户、单位、分类和物料的租户级 ORM 映射。"""
+"""客户、供应商、单位、分类和物料的租户级 ORM 映射。"""
 
 import uuid
 
@@ -24,7 +24,15 @@ class TenantMasterData(models.Model):
 
 
 class Customer(TenantMasterData):
-    """项目引用的客户主数据。"""
+    """项目引用的客户主数据，以及开票和收款所需的组织资料。"""
+
+    short_name = models.CharField(max_length=100, blank=True)
+    tax_identifier = models.CharField(max_length=64, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    phone = models.CharField(max_length=64, blank=True)
+    bank_name = models.CharField(max_length=200, blank=True)
+    bank_account = models.CharField(max_length=64, blank=True)
+    bank_routing_number = models.CharField(max_length=64, blank=True)
 
     class Meta:
         db_table = "master_data_customer"
@@ -33,6 +41,37 @@ class Customer(TenantMasterData):
             models.UniqueConstraint(fields=("tenant", "code"), name="uq_customer_tenant_code"),
             models.UniqueConstraint(
                 fields=("tenant", "normalized_name"), name="uq_customer_tenant_name"
+            ),
+        ]
+
+
+class Supplier(TenantMasterData):
+    """询价、采购订单和付款引用的供应商组织档案。
+
+    银行和税务字段属于业务敏感数据：可以由获授权用例保存，但不得进入
+    普通列表、审计摘要或结构化日志。供应商代码与规范化全称共同形成租户
+    内唯一边界，旧系统中的简称直接迁移为稳定代码。
+    """
+
+    short_name = models.CharField(max_length=100, blank=True)
+    contact_person = models.CharField(max_length=100, blank=True)
+    phone = models.CharField(max_length=64, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    tax_identifier = models.CharField(max_length=64, blank=True)
+    bank_routing_number = models.CharField(max_length=64, blank=True)
+    bank_name = models.CharField(max_length=200, blank=True)
+    bank_account = models.CharField(max_length=64, blank=True)
+    service_description = models.CharField(max_length=200, blank=True)
+    english_name = models.CharField(max_length=200, blank=True)
+    english_address = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        db_table = "master_data_supplier"
+        ordering = ("code", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("tenant", "code"), name="uq_supplier_tenant_code"),
+            models.UniqueConstraint(
+                fields=("tenant", "normalized_name"), name="uq_supplier_tenant_name"
             ),
         ]
 

@@ -42,7 +42,39 @@ class MasterDataRepository(Protocol):
     """主数据模块拥有的最小写入端口。"""
 
     def create_customer(
-        self, *, tenant_id: UUID, code: str, name: str, normalized_name: str
+        self,
+        *,
+        tenant_id: UUID,
+        code: str,
+        name: str,
+        normalized_name: str,
+        short_name: str,
+        tax_identifier: str,
+        address: str,
+        phone: str,
+        bank_name: str,
+        bank_account: str,
+        bank_routing_number: str,
+    ) -> CreatedMasterData: ...
+
+    def create_supplier(
+        self,
+        *,
+        tenant_id: UUID,
+        code: str,
+        name: str,
+        normalized_name: str,
+        short_name: str,
+        contact_person: str,
+        phone: str,
+        address: str,
+        tax_identifier: str,
+        bank_routing_number: str,
+        bank_name: str,
+        bank_account: str,
+        service_description: str,
+        english_name: str,
+        english_address: str,
     ) -> CreatedMasterData: ...
 
     def create_unit(
@@ -81,6 +113,40 @@ class CreateMaterialCommand:
     procurement_required: bool = True
 
 
+@dataclass(frozen=True, slots=True)
+class CreateCustomerCommand:
+    """创建客户的完整组织资料；银行字段不会进入普通审计摘要。"""
+
+    code: str
+    name: str
+    short_name: str = ""
+    tax_identifier: str = ""
+    address: str = ""
+    phone: str = ""
+    bank_name: str = ""
+    bank_account: str = ""
+    bank_routing_number: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class CreateSupplierCommand:
+    """创建供应商的完整档案；所有字段在应用层统一规范化。"""
+
+    code: str
+    name: str
+    short_name: str = ""
+    contact_person: str = ""
+    phone: str = ""
+    address: str = ""
+    tax_identifier: str = ""
+    bank_routing_number: str = ""
+    bank_name: str = ""
+    bank_account: str = ""
+    service_description: str = ""
+    english_name: str = ""
+    english_address: str = ""
+
+
 class MasterDataService:
     """执行主数据写入、授权和审计的应用服务。"""
 
@@ -97,16 +163,61 @@ class MasterDataService:
         self._audit = audit
         self._transactions = transactions
 
-    def create_customer(self, *, context: TenantContext, code: str, name: str) -> CreatedMasterData:
+    def create_customer(
+        self,
+        *,
+        context: TenantContext,
+        code: str | None = None,
+        name: str | None = None,
+        command: CreateCustomerCommand | None = None,
+    ) -> CreatedMasterData:
         """创建租户客户并追加审计；相同代码或规范化名称必须明确失败。"""
-        return self._create_simple(
+        if command is None:
+            if code is None or name is None:
+                raise ValueError("客户代码和名称不能为空。")
+            command = CreateCustomerCommand(code=code, name=name)
+        return self._create_organization(
             context=context,
             permission=PermissionCode.CUSTOMER_MANAGE,
             object_type="customer",
             action="customer.created",
-            code=code,
-            name=name,
+            command=command,
             create=self._repository.create_customer,
+            field_limits={
+                "short_name": (100, "客户简称"),
+                "tax_identifier": (64, "客户税号"),
+                "address": (300, "客户地址"),
+                "phone": (64, "客户电话"),
+                "bank_name": (200, "客户开户行"),
+                "bank_account": (64, "客户银行账号"),
+                "bank_routing_number": (64, "客户银行行号"),
+            },
+        )
+
+    def create_supplier(
+        self, *, context: TenantContext, command: CreateSupplierCommand
+    ) -> CreatedMasterData:
+        """创建供应商，并只在审计摘要中保留非敏感稳定代码。"""
+        return self._create_organization(
+            context=context,
+            permission=PermissionCode.SUPPLIER_MANAGE,
+            object_type="supplier",
+            action="supplier.created",
+            command=command,
+            create=self._repository.create_supplier,
+            field_limits={
+                "short_name": (100, "供应商简称"),
+                "contact_person": (100, "联系人"),
+                "phone": (64, "联系电话"),
+                "address": (300, "供应商地址"),
+                "tax_identifier": (64, "供应商税号"),
+                "bank_routing_number": (64, "银行行号"),
+                "bank_name": (200, "开户银行"),
+                "bank_account": (64, "银行账号"),
+                "service_description": (200, "服务说明"),
+                "english_name": (200, "英文名称"),
+                "english_address": (300, "英文地址"),
+            },
         )
 
     def create_unit(self, *, context: TenantContext, code: str, name: str) -> CreatedMasterData:
@@ -192,6 +303,49 @@ class MasterDataService:
                 code=normalized_code,
                 name=display_name,
                 normalized_name=normalized_name,
+            )
+            self._record_created(
+                context=context,
+                action=action,
+                created=created,
+                object_type=object_type,
+            )
+        return created
+
+    def _create_organization(
+        self,
+        *,
+        context: TenantContext,
+        permission: PermissionCode,
+        object_type: str,
+        action: str,
+        command: CreateCustomerCommand | CreateSupplierCommand,
+        create: Callable[..., CreatedMasterData],
+        field_limits: dict[str, tuple[int, str]],
+    ) -> CreatedMasterData:
+        """执行组织主数据的共同授权、规范化、事务与最小审计边界。"""
+        authorize(
+            context=context,
+            resource_tenant_id=context.tenant_id,
+            permission=permission,
+            is_related=True,
+            lookup=self._grants,
+        )
+        code = normalize_code(command.code, field_name="代码")
+        name, normalized_name = normalize_name(command.name, field_name="名称")
+        optional_fields = {
+            field: normalize_optional_text(
+                str(getattr(command, field)), maximum_length=limit, field_name=label
+            )
+            for field, (limit, label) in field_limits.items()
+        }
+        with self._transactions.atomic():
+            created = create(
+                tenant_id=context.tenant_id,
+                code=code,
+                name=name,
+                normalized_name=normalized_name,
+                **optional_fields,
             )
             self._record_created(
                 context=context,

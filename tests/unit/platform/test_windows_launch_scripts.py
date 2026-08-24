@@ -11,19 +11,22 @@ def read_script(relative_path: str) -> str:
 
 
 def test_batch_entrypoints_locate_the_repository_without_fixed_drive() -> None:
-    """换盘符或父目录后，三个 BAT 仍以自身位置作为 PMS 根目录。"""
+    """换盘符或父目录后，四个 BAT 仍以自身位置作为 PMS 根目录。"""
     first_install = read_script("PMS-首次安装.bat")
     daily_start = read_script("PMS-启动.bat")
     legacy_extract = read_script("PMS-提取旧数据.bat")
-    combined = first_install + daily_start + legacy_extract
+    legacy_import = read_script("PMS-导入旧主数据.bat")
+    combined = first_install + daily_start + legacy_extract + legacy_import
 
     assert 'cd /d "%~dp0"' in first_install
     assert 'cd /d "%~dp0"' in daily_start
     assert 'cd /d "%~dp0"' in legacy_extract
+    assert 'cd /d "%~dp0"' in legacy_import
     assert "%~dp0scripts\\windows\\initialize-pms.ps1" in first_install
     assert "%~dp0scripts\\windows\\start-pms.ps1" in first_install
     assert "%~dp0scripts\\windows\\start-pms.ps1" in daily_start
     assert "%~dp0scripts\\windows\\extract-legacy-data.ps1" in legacy_extract
+    assert "%~dp0scripts\\windows\\import-legacy-master-data.ps1" in legacy_import
     assert 'cd /d "D:\\Github\\pms"' not in combined
     assert all(character.isascii() for character in combined)
 
@@ -56,4 +59,17 @@ def test_legacy_extract_script_uses_ignored_sources_and_explicit_sensitive_flag(
     assert "manage.py extract_legacy_data" in script
     assert "--include-restricted" in script
     assert 'Get-Date -Format "yyyyMMdd-HHmmss"' in script
+    assert "cd D:\\Github\\pms" not in script
+
+
+def test_legacy_master_data_import_requires_backup_and_formal_use_case() -> None:
+    """双击导入在正式数据库前先备份，并调用版本化映射和应用用例入口。"""
+    script = read_script("scripts/windows/import-legacy-master-data.ps1")
+
+    assert 'Join-Path $repositoryRoot "data"' in script
+    assert 'manage.py", "map_legacy_master_data' in script
+    assert 'manage.py", "backup_local' in script
+    assert 'manage.py", "import_legacy_master_data' in script
+    assert "GetActiveTcpListeners" in script
+    assert "PMS-启动.bat" in script
     assert "cd D:\\Github\\pms" not in script
