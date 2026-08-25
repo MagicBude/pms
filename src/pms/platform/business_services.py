@@ -26,8 +26,15 @@ from pms.master_data.infrastructure.django.repository import (
     DjangoMasterDataRepository,
     DjangoTransactionManager,
 )
+from pms.procurement.application.documents import OrderDocumentService
+from pms.procurement.application.orders import PurchaseOrderService
 from pms.procurement.application.pricing import PricingService
 from pms.procurement.application.service import ProcurementService
+from pms.procurement.infrastructure.django.document_repository import DjangoOrderDocumentRepository
+from pms.procurement.infrastructure.django.order_repository import (
+    DjangoPurchaseOrderRepository,
+    DjangoPurchaseOrderTransactionManager,
+)
 from pms.procurement.infrastructure.django.pricing_repository import (
     DjangoPricingRepository,
     DjangoPricingTransactionManager,
@@ -37,6 +44,7 @@ from pms.procurement.infrastructure.django.repository import (
     DjangoProcurementRepository,
     DjangoProcurementTransactionManager,
 )
+from pms.procurement.infrastructure.spreadsheet import render_order_xlsx
 from pms.production.application.service import ProductionService
 from pms.production.infrastructure.django.repository import (
     DjangoBomProductionDownstreamLookup,
@@ -119,4 +127,26 @@ def pricing_service() -> PricingService:
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),
         transactions=DjangoPricingTransactionManager(),
+    )
+
+
+def purchase_order_service() -> PurchaseOrderService:
+    """建立正式订单生命周期服务。"""
+    return PurchaseOrderService(
+        repository=DjangoPurchaseOrderRepository(),
+        grants=DjangoPermissionGrantLookup(),
+        audit=DjangoAuditRecorder(),
+        transactions=DjangoPurchaseOrderTransactionManager(),
+    )
+
+
+def order_document_service() -> OrderDocumentService:
+    """建立版本化订单 Excel 服务并复用受控附件存储。"""
+    return OrderDocumentService(
+        repository=DjangoOrderDocumentRepository(),
+        renderer=render_order_xlsx,
+        attachments=attachment_service(),
+        grants=DjangoPermissionGrantLookup(),
+        audit=DjangoAuditRecorder(),
+        transactions=DjangoPurchaseOrderTransactionManager(),
     )

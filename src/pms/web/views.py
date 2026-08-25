@@ -18,6 +18,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from pms.attachments.domain.attachments import AttachmentId
@@ -34,10 +35,12 @@ from pms.platform.business_services import (
     attachment_service,
     bom_service,
     master_data_service,
+    order_document_service,
     pricing_service,
     procurement_service,
     production_service,
     project_service,
+    purchase_order_service,
 )
 from pms.procurement.application.pricing import CreateQuoteCommand
 from pms.production.application.service import CreateProductionCommand
@@ -815,6 +818,110 @@ def quote_select_view(request: HttpRequest, request_id: UUID, quote_id: UUID) ->
     else:
         messages.success(request, f"供应商已确定，当前为第 {decision.version} 版决策。")
     return redirect("web-request-detail", request_id=request_id)
+
+
+@require_GET
+@login_required
+def purchase_order_list_view(request: HttpRequest) -> HttpResponse:
+    return render(
+        request,
+        "web/purchase_order_list.html",
+        {"orders": queries.purchase_orders(_context(request))},
+    )
+
+
+@require_GET
+@login_required
+def purchase_order_detail_view(request: HttpRequest, order_id: UUID) -> HttpResponse:
+    context = _context(request)
+    detail = queries.purchase_order_detail(context, order_id)
+    if detail is None:
+        raise Http404
+    return render(
+        request, "web/purchase_order_detail.html", {"detail": detail, "cancel_form": CancelForm()}
+    )
+
+
+@require_POST
+@login_required
+def purchase_order_create_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
+    context = _context(request)
+    try:
+        orders = purchase_order_service().create_from_request(
+            context=context, request_id=request_id
+        )
+    except EXPECTED_USER_ERRORS as error:
+        messages.error(request, str(error))
+        return redirect("web-request-detail", request_id=request_id)
+    messages.success(request, f"已生成 {len(orders)} 张订单草稿。")
+    return redirect("web-purchase-order-detail", order_id=orders[0].id)
+
+
+@require_POST
+@login_required
+def purchase_order_issue_view(request: HttpRequest, order_id: UUID) -> HttpResponse:
+    try:
+        issued = purchase_order_service().issue(
+            context=_context(request), order_id=order_id, business_date=timezone.localdate()
+        )
+    except EXPECTED_USER_ERRORS as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"订单已签发：{issued.order_number}")
+    return redirect("web-purchase-order-detail", order_id=order_id)
+
+
+@require_POST
+@login_required
+def purchase_order_cancel_view(request: HttpRequest, order_id: UUID) -> HttpResponse:
+    form = CancelForm(request.POST)
+    if form.is_valid():
+        try:
+            purchase_order_service().cancel(
+                context=_context(request),
+                order_id=order_id,
+                reason=str(form.cleaned_data["reason"]),
+            )
+        except EXPECTED_USER_ERRORS as error:
+            messages.error(request, str(error))
+        else:
+            messages.success(request, "订单已取消，来源请购明细已恢复可下单。")
+    else:
+        messages.error(request, "请填写取消原因。")
+    return redirect("web-purchase-order-detail", order_id=order_id)
+
+
+@require_POST
+@login_required
+def purchase_order_document_generate_view(request: HttpRequest, order_id: UUID) -> HttpResponse:
+    try:
+        document = order_document_service().generate(context=_context(request), order_id=order_id)
+    except EXPECTED_USER_ERRORS as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"订单 Excel V{document.version} 已生成。")
+    return redirect("web-purchase-order-detail", order_id=order_id)
+
+
+@require_GET
+@login_required
+def purchase_order_document_download_view(
+    request: HttpRequest, attachment_id: UUID
+) -> FileResponse:
+    context = _context(request)
+    attachment = queries.attachment_for_order(context, attachment_id)
+    if attachment is None:
+        raise Http404
+    stream = attachment_service().open_available(
+        context=context, attachment_id=AttachmentId(attachment_id)
+    )
+    record_protected_read(
+        context=context,
+        action="purchase_order.document_downloaded",
+        object_type="attachment",
+        object_id=attachment_id,
+    )
+    return FileResponse(stream, as_attachment=True, filename=attachment.original_filename)
 
 
 @require_GET

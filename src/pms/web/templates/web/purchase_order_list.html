@@ -1,0 +1,4 @@
+{% extends "web/base.html" %}{% block title %}采购与外协订单{% endblock %}{% block content %}
+<div class="page-head"><div><h1>采购与外协订单</h1><p class="subtitle">正式编号、冻结金额与历史输出版本均以数据库事实为准。</p></div></div>
+<div class="table-wrap"><table><thead><tr><th>订单号</th><th>供应商</th><th>类型</th><th>状态</th><th>明细</th><th>含税合计</th></tr></thead><tbody>{% for item in orders %}<tr><td><a href="{% url 'web-purchase-order-detail' item.id %}">{{ item.order_number }}</a></td><td>{{ item.supplier_name }}</td><td>{{ item.kind }}</td><td><span class="status {{ item.status }}">{{ item.status_label }}</span></td><td>{{ item.line_count }}</td><td>{{ item.currency }} {{ item.gross_amount }}</td></tr>{% empty %}<tr><td colspan="6" class="empty">尚无正式订单，请先在已确定供应商的请购中生成。</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

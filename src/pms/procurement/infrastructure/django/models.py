@@ -4,6 +4,7 @@ import uuid
 
 from django.db import models
 
+from pms.attachments.infrastructure.django.models import Attachment
 from pms.master_data.infrastructure.django.models import Material, Supplier, Unit
 from pms.procurement.domain.orders import PurchaseOrderKind, PurchaseOrderStatus
 from pms.procurement.domain.pricing import Currency, QuoteSource, QuoteStatus
@@ -365,4 +366,30 @@ class PurchaseOrderSequence(models.Model):
                 fields=("tenant", "business_date", "kind"),
                 name="uq_order_sequence_tenant_date_kind",
             )
+        ]
+
+
+class PurchaseOrderDocument(models.Model):
+    """一次订单 Excel 生成结果；新版本追加而不覆盖旧附件。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="order_documents")
+    order = models.ForeignKey(PurchaseOrder, on_delete=models.PROTECT, related_name="documents")
+    attachment = models.OneToOneField(
+        Attachment, on_delete=models.PROTECT, related_name="purchase_order_document"
+    )
+    version = models.PositiveIntegerField()
+    created_by_membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="created_order_documents"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "procurement_purchase_order_document"
+        ordering = ("-version",)
+        constraints = [
+            models.UniqueConstraint(fields=("order", "version"), name="uq_order_document_version"),
+            models.CheckConstraint(
+                condition=models.Q(version__gt=0), name="ck_order_document_version_positive"
+            ),
         ]

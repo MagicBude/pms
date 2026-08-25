@@ -2,15 +2,20 @@
 
 from dataclasses import replace
 from datetime import date
+from io import BytesIO
 from pathlib import Path
 
 import pytest
+from django.conf import settings
+from openpyxl import load_workbook
 
+from pms.attachments.domain.attachments import AttachmentId
 from pms.audit.infrastructure.django.models import AuditLog
 from pms.audit.infrastructure.django.recorder import DjangoAuditRecorder
 from pms.authorization.application.authorize import PermissionDeniedError
 from pms.authorization.domain.permissions import RoleCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
+from pms.platform.business_services import attachment_service, order_document_service
 from pms.procurement.application.orders import (
     PurchaseOrderConflictError,
     PurchaseOrderNotFoundError,
@@ -19,6 +24,7 @@ from pms.procurement.application.orders import (
 from pms.procurement.domain.orders import PurchaseOrderKind, PurchaseOrderStatus
 from pms.procurement.infrastructure.django.models import (
     PurchaseOrder,
+    PurchaseOrderDocument,
     PurchaseOrderLine,
 )
 from pms.procurement.infrastructure.django.order_repository import (
@@ -125,7 +131,6 @@ def test_read_only_role_and_cross_tenant_order_are_rejected(
         order_service().create_from_request(
             context=project_manager, request_id=line.purchase_request_id
         )
-
     draft = order_service().create_from_request(
         context=context, request_id=line.purchase_request_id
     )[0]
@@ -137,3 +142,40 @@ def test_read_only_role_and_cross_tenant_order_are_rejected(
             order_id=draft.id,
             business_date=date(2026, 8, 25),
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.acceptance
+def test_each_excel_generation_adds_downloadable_version(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """AC-P3A-021/022：Excel 只读取冻结事实并追加可下载历史版本。"""
+    monkeypatch.setattr(
+        settings, "ATTACHMENT_STORAGE_ROOT", tmp_path / "order-files", raising=False
+    )
+    context, line, supplier = submitted_line(monkeypatch, tmp_path)
+    quote = pricing_service().create_quote(
+        context=context, command=command(line_id=line.id, supplier_id=supplier.id)
+    )
+    pricing_service().select_quote(context=context, quote_id=quote.id, today=date(2026, 8, 25))
+    order = order_service().create_from_request(
+        context=context, request_id=line.purchase_request_id
+    )[0]
+    order = order_service().issue(
+        context=context, order_id=order.id, business_date=date(2026, 8, 25)
+    )
+
+    first = order_document_service().generate(context=context, order_id=order.id)
+    second = order_document_service().generate(context=context, order_id=order.id)
+    assert (first.version, second.version) == (1, 2)
+    assert PurchaseOrderDocument.objects.filter(order_id=order.id).count() == 2
+    with attachment_service().open_available(
+        context=context, attachment_id=AttachmentId(first.attachment_id)
+    ) as stream:
+        workbook = load_workbook(BytesIO(stream.read()), read_only=True, data_only=True)
+    sheet = workbook["正式订单"]
+    assert sheet["B2"].value == order.order_number
+    assert sheet["D2"].value == order.kind.value
+    assert sheet["F2"].value == order.supplier_name
+    assert sheet["C6"].value == line.material_code_snapshot
+    workbook.close()

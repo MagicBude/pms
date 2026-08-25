@@ -13,7 +13,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Sum
 
 from pms.attachments.infrastructure.django.models import Attachment
 from pms.authorization.domain.permissions import PermissionCode, PermissionScope
@@ -29,6 +29,8 @@ from pms.master_data.infrastructure.django.models import (
 )
 from pms.procurement.domain.pricing import calculate_price_amounts
 from pms.procurement.infrastructure.django.models import (
+    PurchaseOrder,
+    PurchaseOrderDocument,
     PurchaseRequest,
     PurchaseRequestLine,
     SupplierDecision,
@@ -48,6 +50,7 @@ STATUS_LABELS = {
     "SUPERSEDED": "已替代",
     "RELEASED": "已发布",
     "SUBMITTED": "已提交",
+    "ISSUED": "已签发",
 }
 
 
@@ -265,6 +268,55 @@ class RequestDetail:
     supplier_options: tuple[Option, ...]
     currency_totals: tuple[tuple[str, Decimal, Decimal], ...]
     undecided_line_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class OrderItem:
+    id: UUID
+    order_number: str
+    supplier_name: str
+    kind: str
+    status: str
+    status_label: str
+    currency: str
+    line_count: int
+    gross_amount: Decimal
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class OrderLineItem:
+    project_code: str
+    request_number: str
+    material_code: str
+    material_name: str
+    part_attribute: str
+    unit: str
+    quantity: Decimal
+    unit_price: Decimal
+    tax_rate: Decimal
+    net_amount: Decimal
+    tax_amount: Decimal
+    gross_amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class OrderDocumentItem:
+    attachment_id: UUID
+    version: int
+    filename: str
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class OrderDetail:
+    order: OrderItem
+    cancellation_reason: str
+    lines: tuple[OrderLineItem, ...]
+    documents: tuple[OrderDocumentItem, ...]
+    net_amount: Decimal
+    tax_amount: Decimal
+    can_manage: bool
 
 
 def dashboard(context: TenantContext) -> DashboardData:
@@ -622,6 +674,78 @@ def request_detail(context: TenantContext, request_id: UUID) -> RequestDetail | 
     )
 
 
+def purchase_orders(context: TenantContext) -> tuple[OrderItem, ...]:
+    """返回租户或相关项目范围内的正式订单列表。"""
+    scope = _scope(context, PermissionCode.PURCHASE_ORDER_VIEW)
+    rows = PurchaseOrder.objects.filter(tenant_id=context.tenant_id)
+    if scope is PermissionScope.RELATED:
+        rows = rows.filter(
+            lines__request_line__purchase_request__project__owner_membership_id=context.membership_id
+        ).distinct()
+    return tuple(_order_item(row) for row in rows)
+
+
+def purchase_order_detail(context: TenantContext, order_id: UUID) -> OrderDetail | None:
+    """读取订单冻结内容；相关范围通过任一关联项目判断。"""
+    scope = _scope(context, PermissionCode.PURCHASE_ORDER_VIEW)
+    rows = PurchaseOrder.objects.filter(id=order_id, tenant_id=context.tenant_id)
+    if scope is PermissionScope.RELATED:
+        rows = rows.filter(
+            lines__request_line__purchase_request__project__owner_membership_id=context.membership_id
+        )
+    order = rows.distinct().first()
+    if order is None:
+        return None
+    lines = tuple(
+        OrderLineItem(
+            project_code=row.project_code_snapshot,
+            request_number=row.request_number_snapshot,
+            material_code=row.material_code_snapshot,
+            material_name=row.material_name_snapshot,
+            part_attribute=row.part_attribute_snapshot,
+            unit=row.unit_name_snapshot,
+            quantity=row.quantity,
+            unit_price=row.unit_price,
+            tax_rate=row.tax_rate,
+            net_amount=row.net_amount,
+            tax_amount=row.tax_amount,
+            gross_amount=row.gross_amount,
+        )
+        for row in order.lines.all()
+    )
+    return OrderDetail(
+        order=_order_item(order),
+        cancellation_reason=order.cancellation_reason,
+        lines=lines,
+        documents=tuple(
+            OrderDocumentItem(
+                attachment_id=row.attachment_id,
+                version=row.version,
+                filename=row.attachment.original_filename,
+                created_at=row.created_at,
+            )
+            for row in order.documents.select_related("attachment")
+        ),
+        net_amount=sum((line.net_amount for line in lines), Decimal("0.00")),
+        tax_amount=sum((line.tax_amount for line in lines), Decimal("0.00")),
+        can_manage=_has_scope(context, PermissionCode.PURCHASE_ORDER_MANAGE),
+    )
+
+
+def attachment_for_order(context: TenantContext, attachment_id: UUID) -> Attachment | None:
+    """只允许通过可见正式订单下载其版本化文档。"""
+    scope = _scope(context, PermissionCode.PURCHASE_ORDER_VIEW)
+    documents = PurchaseOrderDocument.objects.filter(
+        tenant_id=context.tenant_id, attachment_id=attachment_id
+    )
+    if scope is PermissionScope.RELATED:
+        documents = documents.filter(
+            order__lines__request_line__purchase_request__project__owner_membership_id=context.membership_id
+        )
+    document = documents.select_related("attachment").distinct().first()
+    return document.attachment if document and document.attachment.status == "available" else None
+
+
 def attachment_for_bom(context: TenantContext, attachment_id: UUID) -> Attachment | None:
     allowed_projects = visible_project_queryset(
         context=context, permission=PermissionCode.ATTACHMENT_DOWNLOAD
@@ -676,6 +800,22 @@ def _project_item(row: Project) -> ProjectItem:
         status=row.status,
         status_label=STATUS_LABELS.get(row.status, row.status),
         cancellation_reason=row.cancellation_reason,
+        created_at=row.created_at,
+    )
+
+
+def _order_item(row: PurchaseOrder) -> OrderItem:
+    totals = row.lines.aggregate(value=Sum("gross_amount"))
+    return OrderItem(
+        id=row.id,
+        order_number=row.order_number or "草稿（未编号）",
+        supplier_name=row.supplier_name_snapshot,
+        kind=row.kind,
+        status=row.status,
+        status_label=STATUS_LABELS.get(row.status, row.status),
+        currency=row.currency,
+        line_count=row.lines.count(),
+        gross_amount=totals["value"] or Decimal("0.00"),
         created_at=row.created_at,
     )
 

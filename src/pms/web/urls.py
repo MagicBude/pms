@@ -89,6 +89,37 @@ urlpatterns = [
         views.quote_select_view,
         name="web-quote-select",
     ),
+    path("orders/", views.purchase_order_list_view, name="web-purchase-order-list"),
+    path(
+        "orders/<uuid:order_id>/",
+        views.purchase_order_detail_view,
+        name="web-purchase-order-detail",
+    ),
+    path(
+        "requests/<uuid:request_id>/orders/new/",
+        views.purchase_order_create_view,
+        name="web-purchase-order-create",
+    ),
+    path(
+        "orders/<uuid:order_id>/issue/",
+        views.purchase_order_issue_view,
+        name="web-purchase-order-issue",
+    ),
+    path(
+        "orders/<uuid:order_id>/cancel/",
+        views.purchase_order_cancel_view,
+        name="web-purchase-order-cancel",
+    ),
+    path(
+        "orders/<uuid:order_id>/documents/new/",
+        views.purchase_order_document_generate_view,
+        name="web-purchase-order-document-generate",
+    ),
+    path(
+        "order-documents/<uuid:attachment_id>/download/",
+        views.purchase_order_document_download_view,
+        name="web-purchase-order-document-download",
+    ),
     path(
         "attachments/<uuid:attachment_id>/download/",
         views.attachment_download_view,
