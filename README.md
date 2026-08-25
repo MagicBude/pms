@@ -48,6 +48,14 @@ uv sync --locked --all-groups
 先创建完整备份，再幂等导入 9 个客户和 115 个供应商并生成无敏感值对账报告。成功后重新双击
 `PMS-启动.bat`，可在左侧“客户”和“供应商”页面查看。
 
+已提交的生产请购现在可以直接在详情页录入多家供应商报价、核算含税/未税金额并确定供应商；
+不同币种分别汇总，重选会保留历史版本。该能力是采购侧价格核算，整机成本与客户报价仍在后续
+`SAL-001` 批次。
+
+已有本机数据在拉取本批代码后，先停止 PMS，在仓库终端执行 `uv sync --locked --all-groups`、
+`uv run python manage.py migrate --noinput` 和 `uv run python manage.py initialize_pms`。最后一条对既有
+管理员不要求重新输入密码，只会幂等补齐新增报价权限；完成后再双击 `PMS-启动.bat`。
+
 ## 阅读顺序
 
 1. [当前项目状态](PROJECT_STATUS.md)

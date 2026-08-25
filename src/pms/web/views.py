@@ -6,6 +6,9 @@
 
 import uuid
 from contextlib import suppress
+from datetime import date
+from decimal import Decimal
+from typing import cast
 from uuid import UUID
 
 from django.contrib import messages
@@ -31,10 +34,12 @@ from pms.platform.business_services import (
     attachment_service,
     bom_service,
     master_data_service,
+    pricing_service,
     procurement_service,
     production_service,
     project_service,
 )
+from pms.procurement.application.pricing import CreateQuoteCommand
 from pms.production.application.service import CreateProductionCommand
 from pms.projects.application.service import CreateProjectCommand
 from pms.tenancy.application.resolve_context import TenantContextUnavailableError
@@ -54,6 +59,7 @@ from pms.web.forms import (
     ProductionForm,
     ProjectForm,
     SupplierForm,
+    SupplierQuoteForm,
 )
 
 EXPECTED_USER_ERRORS = (ValueError, LookupError, PermissionError)
@@ -689,7 +695,11 @@ def request_detail_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
     return render(
         request,
         "web/request_detail.html",
-        {"detail": detail, "cancel_form": CancelForm()},
+        {
+            "detail": detail,
+            "cancel_form": CancelForm(),
+            "quote_form": SupplierQuoteForm(suppliers=detail.supplier_options),
+        },
     )
 
 
@@ -738,6 +748,72 @@ def request_cancel_view(request: HttpRequest, request_id: UUID) -> HttpResponse:
             messages.success(request, "生产请购已取消，来源数量恢复可请购。")
     else:
         messages.error(request, "请填写取消原因。")
+    return redirect("web-request-detail", request_id=request_id)
+
+
+@require_POST
+@login_required
+def quote_create_view(request: HttpRequest, request_id: UUID, line_id: UUID) -> HttpResponse:
+    """录入不可变供应商报价，表单错误不写入任何部分状态。"""
+    context = _context(request)
+    detail = queries.request_detail(context, request_id)
+    if detail is None or line_id not in {line.id for line in detail.lines}:
+        raise Http404
+    form = SupplierQuoteForm(request.POST, suppliers=detail.supplier_options)
+    if form.is_valid():
+        try:
+            pricing_service().create_quote(
+                context=context,
+                command=CreateQuoteCommand(
+                    request_line_id=line_id,
+                    supplier_id=UUID(str(form.cleaned_data["supplier_id"])),
+                    quote_date=cast(date, form.cleaned_data["quote_date"]),
+                    valid_until=cast(date | None, form.cleaned_data["valid_until"]),
+                    currency=str(form.cleaned_data["currency"]),
+                    unit_price=cast(Decimal, form.cleaned_data["unit_price"]),
+                    tax_rate=cast(Decimal, form.cleaned_data["tax_rate"]),
+                    tax_included=bool(form.cleaned_data["tax_included"]),
+                    minimum_order_quantity=cast(
+                        Decimal | None, form.cleaned_data["minimum_order_quantity"]
+                    ),
+                    lead_time_days=cast(int | None, form.cleaned_data["lead_time_days"]),
+                    source_type=str(form.cleaned_data["source_type"]),
+                    source_reference=str(form.cleaned_data["source_reference"]),
+                    remark=str(form.cleaned_data["remark"]),
+                ),
+            )
+        except EXPECTED_USER_ERRORS as error:
+            messages.error(request, str(error))
+        else:
+            messages.success(request, "供应商报价已保存。")
+    else:
+        messages.error(request, "报价字段不完整或格式不正确。")
+    return redirect("web-request-detail", request_id=request_id)
+
+
+@require_POST
+@login_required
+def quote_withdraw_view(request: HttpRequest, request_id: UUID, quote_id: UUID) -> HttpResponse:
+    context = _context(request)
+    try:
+        pricing_service().withdraw_quote(context=context, quote_id=quote_id)
+    except EXPECTED_USER_ERRORS as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "报价已撤销并保留历史。")
+    return redirect("web-request-detail", request_id=request_id)
+
+
+@require_POST
+@login_required
+def quote_select_view(request: HttpRequest, request_id: UUID, quote_id: UUID) -> HttpResponse:
+    context = _context(request)
+    try:
+        decision = pricing_service().select_quote(context=context, quote_id=quote_id)
+    except EXPECTED_USER_ERRORS as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, f"供应商已确定，当前为第 {decision.version} 版决策。")
     return redirect("web-request-detail", request_id=request_id)
 
 

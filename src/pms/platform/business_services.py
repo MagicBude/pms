@@ -26,7 +26,12 @@ from pms.master_data.infrastructure.django.repository import (
     DjangoMasterDataRepository,
     DjangoTransactionManager,
 )
+from pms.procurement.application.pricing import PricingService
 from pms.procurement.application.service import ProcurementService
+from pms.procurement.infrastructure.django.pricing_repository import (
+    DjangoPricingRepository,
+    DjangoPricingTransactionManager,
+)
 from pms.procurement.infrastructure.django.repository import (
     DjangoProcurementProductionDownstreamLookup,
     DjangoProcurementRepository,
@@ -104,4 +109,14 @@ def procurement_service() -> ProcurementService:
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),
         transactions=DjangoProcurementTransactionManager(),
+    )
+
+
+def pricing_service() -> PricingService:
+    """建立采购报价和供应商确定服务。"""
+    return PricingService(
+        repository=DjangoPricingRepository(),
+        grants=DjangoPermissionGrantLookup(),
+        audit=DjangoAuditRecorder(),
+        transactions=DjangoPricingTransactionManager(),
     )

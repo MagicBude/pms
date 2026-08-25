@@ -4,7 +4,8 @@ import uuid
 
 from django.db import models
 
-from pms.master_data.infrastructure.django.models import Material, Unit
+from pms.master_data.infrastructure.django.models import Material, Supplier, Unit
+from pms.procurement.domain.pricing import Currency, QuoteSource, QuoteStatus
 from pms.procurement.domain.request import PurchaseRequestStatus
 from pms.production.infrastructure.django.models import (
     ProductionRelease,
@@ -131,4 +132,114 @@ class PurchaseRequestSequence(models.Model):
             models.UniqueConstraint(
                 fields=("tenant", "business_date"), name="uq_request_sequence_tenant_date"
             )
+        ]
+
+
+class SupplierQuote(models.Model):
+    """一条不可变供应商报价；错误事实通过撤销状态保留。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="supplier_quotes")
+    request_line = models.ForeignKey(
+        PurchaseRequestLine, on_delete=models.PROTECT, related_name="supplier_quotes"
+    )
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="quotes")
+    quote_date = models.DateField()
+    valid_until = models.DateField(null=True, blank=True)
+    currency = models.CharField(
+        max_length=3, choices=[(item.value, item.value) for item in Currency]
+    )
+    unit_price = models.DecimalField(max_digits=24, decimal_places=6)
+    tax_rate = models.DecimalField(max_digits=7, decimal_places=4)
+    tax_included = models.BooleanField(default=True)
+    minimum_order_quantity = models.DecimalField(
+        max_digits=24, decimal_places=6, null=True, blank=True
+    )
+    lead_time_days = models.PositiveIntegerField(null=True, blank=True)
+    source_type = models.CharField(
+        max_length=16, choices=[(item.value, item.value) for item in QuoteSource]
+    )
+    source_reference = models.CharField(max_length=100, blank=True)
+    remark = models.CharField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=[(item.value, item.value) for item in QuoteStatus],
+        default=QuoteStatus.ACTIVE.value,
+    )
+    created_by_membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="created_supplier_quotes"
+    )
+    withdrawn_by_membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="withdrawn_supplier_quotes",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "procurement_supplier_quote"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(unit_price__gt=0), name="ck_supplier_quote_price_positive"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(tax_rate__gte=0, tax_rate__lte=100),
+                name="ck_supplier_quote_tax_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(minimum_order_quantity__isnull=True)
+                | models.Q(minimum_order_quantity__gt=0),
+                name="ck_supplier_quote_minimum_positive",
+            ),
+        ]
+
+
+class SupplierDecision(models.Model):
+    """追加式供应商确定版本及当时采用的完整价格快照。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="supplier_decisions")
+    request_line = models.ForeignKey(
+        PurchaseRequestLine, on_delete=models.PROTECT, related_name="supplier_decisions"
+    )
+    quote = models.ForeignKey(
+        SupplierQuote, on_delete=models.PROTECT, related_name="supplier_decisions"
+    )
+    version = models.PositiveIntegerField()
+    is_current = models.BooleanField(default=True)
+    supplier_code_snapshot = models.CharField(max_length=64)
+    supplier_name_snapshot = models.CharField(max_length=200)
+    currency = models.CharField(max_length=3)
+    unit_price = models.DecimalField(max_digits=24, decimal_places=6)
+    tax_rate = models.DecimalField(max_digits=7, decimal_places=4)
+    tax_included = models.BooleanField()
+    requested_quantity = models.DecimalField(max_digits=24, decimal_places=6)
+    net_amount = models.DecimalField(max_digits=30, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=30, decimal_places=2)
+    gross_amount = models.DecimalField(max_digits=30, decimal_places=2)
+    decided_by_membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="supplier_decisions"
+    )
+    decided_at = models.DateTimeField(auto_now_add=True)
+    superseded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "procurement_supplier_decision"
+        ordering = ("request_line_id", "-version")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("request_line", "version"), name="uq_supplier_decision_line_version"
+            ),
+            models.UniqueConstraint(
+                fields=("request_line",),
+                condition=models.Q(is_current=True),
+                name="uq_supplier_decision_line_current",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(version__gt=0), name="ck_supplier_decision_version_positive"
+            ),
         ]

@@ -75,6 +75,21 @@ urlpatterns = [
         name="web-request-cancel",
     ),
     path(
+        "requests/<uuid:request_id>/lines/<uuid:line_id>/quotes/new/",
+        views.quote_create_view,
+        name="web-quote-create",
+    ),
+    path(
+        "requests/<uuid:request_id>/quotes/<uuid:quote_id>/withdraw/",
+        views.quote_withdraw_view,
+        name="web-quote-withdraw",
+    ),
+    path(
+        "requests/<uuid:request_id>/quotes/<uuid:quote_id>/select/",
+        views.quote_select_view,
+        name="web-quote-select",
+    ),
+    path(
         "attachments/<uuid:attachment_id>/download/",
         views.attachment_download_view,
         name="web-attachment-download",

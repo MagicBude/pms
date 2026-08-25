@@ -23,7 +23,12 @@ from pms.master_data.infrastructure.django.models import (
     Unit,
 )
 from pms.procurement.domain.request import PurchaseRequestStatus
-from pms.procurement.infrastructure.django.models import PurchaseRequest
+from pms.procurement.infrastructure.django.models import (
+    PurchaseRequest,
+    PurchaseRequestLine,
+    SupplierDecision,
+    SupplierQuote,
+)
 from pms.production.domain.release import ProductionStatus
 from pms.production.infrastructure.django.models import ProductionRelease
 from pms.projects.domain.lifecycle import ProjectStatus
@@ -286,8 +291,36 @@ def test_browser_workflow_reaches_submitted_purchase_request(
     purchase_request.refresh_from_db()
     assert purchase_request.status == PurchaseRequestStatus.SUBMITTED
     assert purchase_request.request_number is not None
+    request_line = PurchaseRequestLine.objects.get(purchase_request=purchase_request)
+    supplier = Supplier.objects.get(code="SUP-UI")
+    quote_response = client.post(
+        f"/requests/{purchase_request.id}/lines/{request_line.id}/quotes/new/",
+        {
+            "supplier_id": str(supplier.id),
+            "quote_date": "2026-08-25",
+            "valid_until": "2026-09-25",
+            "currency": "CNY",
+            "unit_price": "113.000000",
+            "tax_rate": "13.0000",
+            "tax_included": "on",
+            "minimum_order_quantity": "1",
+            "lead_time_days": "7",
+            "source_type": "SUPPLIER",
+            "source_reference": "UI-Q-001",
+            "remark": "界面虚构报价",
+        },
+    )
+    assert quote_response.status_code == 302
+    quote = SupplierQuote.objects.get(request_line=request_line)
+    select_response = client.post(f"/requests/{purchase_request.id}/quotes/{quote.id}/select/")
+    assert select_response.status_code == 302
+    assert SupplierDecision.objects.get(request_line=request_line, is_current=True).version == 1
     final_page = client.get(f"/requests/{purchase_request.id}/")
-    assert purchase_request.request_number in final_page.content.decode()
+    final_html = final_page.content.decode()
+    assert purchase_request.request_number in final_html
+    assert "价格确定汇总" in final_html
+    assert "界面示例供应商" in final_html
+    assert "678.00" in final_html
     assert AuditLog.objects.filter(action="purchase_request.submitted").count() == 1
     assert Attachment.objects.filter(id=bom.source_attachment_id, status="available").exists()
 

@@ -5,6 +5,8 @@
 模板通过直接 UUID 猜测泄露其他租户或无关项目。
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -25,7 +27,13 @@ from pms.master_data.infrastructure.django.models import (
     Supplier,
     Unit,
 )
-from pms.procurement.infrastructure.django.models import PurchaseRequest, PurchaseRequestLine
+from pms.procurement.domain.pricing import calculate_price_amounts
+from pms.procurement.infrastructure.django.models import (
+    PurchaseRequest,
+    PurchaseRequestLine,
+    SupplierDecision,
+    SupplierQuote,
+)
 from pms.production.infrastructure.django.models import ProductionRelease, ProductionRequirement
 from pms.projects.infrastructure.django.models import Project
 from pms.tenancy.domain.context import TenantContext
@@ -203,10 +211,45 @@ class ProductionDetail:
 
 @dataclass(frozen=True, slots=True)
 class RequestLineItem:
+    id: UUID
     material_code: str
     material_name: str
     requested_quantity: Decimal
     unit: str
+    quotes: tuple[QuoteItem, ...]
+    current_decision: DecisionItem | None
+
+
+@dataclass(frozen=True, slots=True)
+class QuoteItem:
+    id: UUID
+    supplier_name: str
+    quote_date: date
+    valid_until: date | None
+    currency: str
+    unit_price: Decimal
+    tax_rate: Decimal
+    tax_included: bool
+    minimum_order_quantity: Decimal | None
+    lead_time_days: int | None
+    source_type: str
+    source_reference: str
+    remark: str
+    status: str
+    net_amount: Decimal
+    tax_amount: Decimal
+    gross_amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionItem:
+    quote_id: UUID
+    version: int
+    supplier_name: str
+    currency: str
+    net_amount: Decimal
+    tax_amount: Decimal
+    gross_amount: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,6 +260,11 @@ class RequestDetail:
     production_id: UUID
     cancellation_reason: str
     lines: tuple[RequestLineItem, ...]
+    can_view_pricing: bool
+    can_manage_pricing: bool
+    supplier_options: tuple[Option, ...]
+    currency_totals: tuple[tuple[str, Decimal, Decimal], ...]
+    undecided_line_count: int
 
 
 def dashboard(context: TenantContext) -> DashboardData:
@@ -476,18 +524,86 @@ def request_detail(context: TenantContext, request_id: UUID) -> RequestDetail | 
     )
     if request is None:
         return None
+    can_view_pricing = _has_scope(context, PermissionCode.PURCHASE_QUOTE_VIEW)
+    can_manage_pricing = _has_scope(context, PermissionCode.PURCHASE_QUOTE_MANAGE)
+    request_lines = list(
+        PurchaseRequestLine.objects.filter(tenant_id=context.tenant_id, purchase_request=request)
+        .select_related("unit")
+        .order_by("source_requirement_id", "id")
+    )
+    quote_map: dict[UUID, list[QuoteItem]] = {line.id: [] for line in request_lines}
+    decision_map: dict[UUID, DecisionItem] = {}
+    if can_view_pricing:
+        for quote in SupplierQuote.objects.filter(
+            tenant_id=context.tenant_id, request_line__purchase_request=request
+        ).select_related("supplier", "request_line"):
+            amounts = calculate_price_amounts(
+                quantity=quote.request_line.requested_quantity,
+                unit_price=quote.unit_price,
+                tax_rate=quote.tax_rate,
+                tax_included=quote.tax_included,
+            )
+            quote_map[quote.request_line_id].append(
+                QuoteItem(
+                    id=quote.id,
+                    supplier_name=quote.supplier.name,
+                    quote_date=quote.quote_date,
+                    valid_until=quote.valid_until,
+                    currency=quote.currency,
+                    unit_price=quote.unit_price,
+                    tax_rate=quote.tax_rate,
+                    tax_included=quote.tax_included,
+                    minimum_order_quantity=quote.minimum_order_quantity,
+                    lead_time_days=quote.lead_time_days,
+                    source_type=quote.source_type,
+                    source_reference=quote.source_reference,
+                    remark=quote.remark,
+                    status=quote.status,
+                    net_amount=amounts.net_amount,
+                    tax_amount=amounts.tax_amount,
+                    gross_amount=amounts.gross_amount,
+                )
+            )
+        for decision_row in SupplierDecision.objects.filter(
+            tenant_id=context.tenant_id,
+            request_line__purchase_request=request,
+            is_current=True,
+        ):
+            decision_map[decision_row.request_line_id] = DecisionItem(
+                quote_id=decision_row.quote_id,
+                version=decision_row.version,
+                supplier_name=decision_row.supplier_name_snapshot,
+                currency=decision_row.currency,
+                net_amount=decision_row.net_amount,
+                tax_amount=decision_row.tax_amount,
+                gross_amount=decision_row.gross_amount,
+            )
     lines = tuple(
         RequestLineItem(
+            id=row.id,
             material_code=row.material_code_snapshot,
             material_name=row.material_name_snapshot,
             requested_quantity=row.requested_quantity,
             unit=row.unit.name,
+            quotes=tuple(quote_map[row.id]),
+            current_decision=decision_map.get(row.id),
         )
-        for row in PurchaseRequestLine.objects.filter(
-            tenant_id=context.tenant_id, purchase_request=request
+        for row in request_lines
+    )
+    totals: dict[str, tuple[Decimal, Decimal]] = {}
+    for current_decision in decision_map.values():
+        net, gross = totals.get(current_decision.currency, (Decimal("0"), Decimal("0")))
+        totals[current_decision.currency] = (
+            net + current_decision.net_amount,
+            gross + current_decision.gross_amount,
         )
-        .select_related("unit")
-        .order_by("source_requirement_id", "id")
+    supplier_options = (
+        tuple(
+            Option(id=row.id, label=f"{row.code} · {row.name}")
+            for row in Supplier.objects.filter(tenant_id=context.tenant_id, is_active=True)
+        )
+        if can_manage_pricing
+        else ()
     )
     return RequestDetail(
         request=_request_item(request),
@@ -496,6 +612,13 @@ def request_detail(context: TenantContext, request_id: UUID) -> RequestDetail | 
         production_id=request.production_release_id,
         cancellation_reason=request.cancellation_reason,
         lines=lines,
+        can_view_pricing=can_view_pricing,
+        can_manage_pricing=can_manage_pricing,
+        supplier_options=supplier_options,
+        currency_totals=tuple(
+            (currency, amounts[0], amounts[1]) for currency, amounts in sorted(totals.items())
+        ),
+        undecided_line_count=len(request_lines) - len(decision_map),
     )
 
 
@@ -531,6 +654,16 @@ def _scope(context: TenantContext, permission: PermissionCode) -> PermissionScop
     if scope is None:
         raise PermissionDenied("当前成员无权查看该内容。")
     return scope
+
+
+def _has_scope(context: TenantContext, permission: PermissionCode) -> bool:
+    """页面可选区块使用的无副作用权限探测；写操作仍由应用服务授权。"""
+    return (
+        DjangoPermissionGrantLookup().find_scope(
+            membership_id=context.membership_id, permission=permission
+        )
+        is not None
+    )
 
 
 def _project_item(row: Project) -> ProjectItem:

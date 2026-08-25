@@ -193,3 +193,45 @@ class CancelForm(StyledForm):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.apply_styles()
+
+
+class SupplierQuoteForm(StyledForm):
+    """采购报价输入；业务有效期和状态仍由应用服务复核。"""
+
+    supplier_id = forms.ChoiceField(label="供应商")
+    quote_date = forms.DateField(label="报价日期", widget=forms.DateInput(attrs={"type": "date"}))
+    valid_until = forms.DateField(
+        label="有效期至", required=False, widget=forms.DateInput(attrs={"type": "date"})
+    )
+    currency = forms.ChoiceField(
+        label="币种", choices=[(item, item) for item in ("CNY", "USD", "EUR", "JPY", "GBP")]
+    )
+    unit_price = forms.DecimalField(label="报价单价", min_value=0, decimal_places=6)
+    tax_rate = forms.DecimalField(
+        label="税率（%）", min_value=0, max_value=100, decimal_places=4, initial=13
+    )
+    tax_included = forms.BooleanField(label="单价含税", required=False, initial=True)
+    minimum_order_quantity = forms.DecimalField(
+        label="最小订购量", required=False, min_value=0, decimal_places=6
+    )
+    lead_time_days = forms.IntegerField(label="交期天数", required=False, min_value=0)
+    source_type = forms.ChoiceField(
+        label="报价来源",
+        choices=[
+            ("SUPPLIER", "供应商报价"),
+            ("HISTORICAL", "历史采购"),
+            ("ERP", "ERP"),
+            ("MANUAL", "人工依据"),
+        ],
+    )
+    source_reference = forms.CharField(label="来源编号", max_length=100, required=False)
+    remark = forms.CharField(
+        label="报价备注", max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2})
+    )
+
+    def __init__(self, *args: Any, suppliers: tuple[Option, ...] = (), **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        cast(forms.ChoiceField, self.fields["supplier_id"]).choices = [
+            (str(item.id), item.label) for item in suppliers
+        ]
+        self.apply_styles()

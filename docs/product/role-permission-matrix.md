@@ -1,6 +1,6 @@
 # 角色与权限矩阵
 
-状态：已接受（SLICE-001 + Phase 3A 供应商主数据范围）
+状态：已接受（SLICE-001 + Phase 3A 询价范围）
 
 ## 1. 权限原则
 
@@ -36,6 +36,7 @@
 | `bom.view` / `bom.import` / `bom.edit` / `bom.publish` / `bom.cancel` | 查看、导入、修正、发布或取消 BOM 版本 |
 | `production_release.view` / `production_release.create` / `production_release.release` / `production_release.cancel` | 管理投产批次 |
 | `purchase_request.view` / `purchase_request.create` / `purchase_request.submit` / `purchase_request.cancel` | 管理生产请购 |
+| `purchase_quote.view` / `purchase_quote.manage` | 查看报价，或维护报价并确定供应商 |
 | `attachment.download` | 下载授权业务对象的附件 |
 | `audit.view_related` | 查看与自己授权业务范围相关的审计 |
 | `audit.view_all` | 查看本租户全部审计 |
@@ -64,6 +65,8 @@
 | `production_release.create` / `production_release.release` / `production_release.cancel` | ✓ | R | — | ✓ | — |
 | `purchase_request.view` | ✓ | R | R | R | R |
 | `purchase_request.create` / `purchase_request.submit` / `purchase_request.cancel` | ✓ | — | — | ✓ | — |
+| `purchase_quote.view` | ✓ | R | — | ✓ | — |
+| `purchase_quote.manage` | ✓ | — | — | ✓ | — |
 | `attachment.download` | ✓ | R | R | R | R |
 | `audit.view_related` | ✓ | R | R | R | R |
 | `audit.view_all` | ✓ | — | — | — | — |
@@ -89,6 +92,7 @@ P0 本机版只有一个默认管理员时，上述范围仍通过同一授权�
 - BOM 导入、发布、取消；
 - 投产批次发布、取消；
 - 请购提交、取消和重复/冲突提交；
+- 供应商报价创建、撤销和供应商确定；
 - 权限拒绝和跨租户访问尝试；
 - 配置、成员和角色变更；
 - 受保护附件下载。
