@@ -12,6 +12,7 @@ ADR 记录不可轻易逆转或影响多个模块的技术决定。状态为“�
 | [ADR-0004](ADR-0004-deployment-profiles.md) | 已接受 | 本机、内网和云端部署形态 |
 | [ADR-0005](ADR-0005-data-portability-and-legacy-extraction.md) | 已接受 | 备份恢复、旧数据只读提取和租户导出边界 |
 | [ADR-0006](ADR-0006-procurement-pricing-and-supplier-decision.md) | 已接受 | 采购报价、价格快照和追加式供应商确定 |
+| [ADR-0007](ADR-0007-purchase-orders-and-versioned-documents.md) | 已接受 | 正式订单、稳定编号和版本化单据 |
 
 ## 状态规则
 
