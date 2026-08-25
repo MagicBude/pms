@@ -35,6 +35,8 @@ class PermissionCode(StrEnum):
     PURCHASE_REQUEST_CANCEL = "purchase_request.cancel"
     PURCHASE_QUOTE_VIEW = "purchase_quote.view"
     PURCHASE_QUOTE_MANAGE = "purchase_quote.manage"
+    PURCHASE_ORDER_VIEW = "purchase_order.view"
+    PURCHASE_ORDER_MANAGE = "purchase_order.manage"
     ATTACHMENT_DOWNLOAD = "attachment.download"
     AUDIT_VIEW_RELATED = "audit.view_related"
     AUDIT_VIEW_ALL = "audit.view_all"

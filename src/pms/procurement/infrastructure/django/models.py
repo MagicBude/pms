@@ -5,6 +5,7 @@ import uuid
 from django.db import models
 
 from pms.master_data.infrastructure.django.models import Material, Supplier, Unit
+from pms.procurement.domain.orders import PurchaseOrderKind, PurchaseOrderStatus
 from pms.procurement.domain.pricing import Currency, QuoteSource, QuoteStatus
 from pms.procurement.domain.request import PurchaseRequestStatus
 from pms.production.infrastructure.django.models import (
@@ -242,4 +243,126 @@ class SupplierDecision(models.Model):
             models.CheckConstraint(
                 condition=models.Q(version__gt=0), name="ck_supplier_decision_version_positive"
             ),
+        ]
+
+
+class PurchaseOrder(models.Model):
+    """供应商与币种一致的正式订单头；业务事实不依赖导出文件存在。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="purchase_orders")
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="purchase_orders")
+    supplier_code_snapshot = models.CharField(max_length=64)
+    supplier_name_snapshot = models.CharField(max_length=200)
+    currency = models.CharField(max_length=3)
+    kind = models.CharField(
+        max_length=16, choices=[(item.value, item.value) for item in PurchaseOrderKind]
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=[(item.value, item.value) for item in PurchaseOrderStatus],
+        default=PurchaseOrderStatus.DRAFT.value,
+    )
+    order_number = models.CharField(max_length=32, null=True, blank=True)
+    created_by_membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="created_purchase_orders"
+    )
+    issued_by_membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="issued_purchase_orders",
+        null=True,
+        blank=True,
+    )
+    cancelled_by_membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="cancelled_purchase_orders",
+        null=True,
+        blank=True,
+    )
+    cancellation_reason = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    issued_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "procurement_purchase_order"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "order_number"), name="uq_order_tenant_number"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=[item.value for item in PurchaseOrderStatus]),
+                name="ck_order_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(kind__in=[item.value for item in PurchaseOrderKind]),
+                name="ck_order_kind_valid",
+            ),
+        ]
+
+
+class PurchaseOrderLine(models.Model):
+    """引用确定版本并冻结下单时全部商业与物料快照。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.PROTECT, related_name="purchase_order_lines"
+    )
+    order = models.ForeignKey(PurchaseOrder, on_delete=models.PROTECT, related_name="lines")
+    decision = models.ForeignKey(
+        SupplierDecision, on_delete=models.PROTECT, related_name="order_lines"
+    )
+    request_line = models.ForeignKey(
+        PurchaseRequestLine, on_delete=models.PROTECT, related_name="order_lines"
+    )
+    is_active = models.BooleanField(default=True)
+    project_code_snapshot = models.CharField(max_length=64)
+    request_number_snapshot = models.CharField(max_length=32)
+    material_code_snapshot = models.CharField(max_length=64)
+    material_name_snapshot = models.CharField(max_length=200)
+    part_attribute_snapshot = models.CharField(max_length=32, blank=True)
+    unit_name_snapshot = models.CharField(max_length=64)
+    quantity = models.DecimalField(max_digits=24, decimal_places=6)
+    unit_price = models.DecimalField(max_digits=24, decimal_places=6)
+    tax_rate = models.DecimalField(max_digits=7, decimal_places=4)
+    tax_included = models.BooleanField()
+    net_amount = models.DecimalField(max_digits=30, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=30, decimal_places=2)
+    gross_amount = models.DecimalField(max_digits=30, decimal_places=2)
+    remark_snapshot = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        db_table = "procurement_purchase_order_line"
+        ordering = ("id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("request_line",),
+                condition=models.Q(is_active=True),
+                name="uq_order_line_request_active",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0), name="ck_order_line_quantity_positive"
+            ),
+        ]
+
+
+class PurchaseOrderSequence(models.Model):
+    """租户、业务日期和订单类型内的签发序号。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="order_sequences")
+    business_date = models.DateField()
+    kind = models.CharField(max_length=16)
+    last_value = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "procurement_purchase_order_sequence"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "business_date", "kind"),
+                name="uq_order_sequence_tenant_date_kind",
+            )
         ]
