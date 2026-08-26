@@ -1,6 +1,6 @@
 # Migration
 
-状态：持续维护（原始提取与客户/供应商规范迁移已实现）
+状态：持续维护（原始提取、客户/供应商迁移已实现，旧采购订单迁移设计已接受）
 
 本目录负责把旧 Excel/VBA 系统中的知识和数据迁移到新 PMS。
 
@@ -10,6 +10,7 @@
 - [数据迁移总策略](data-migration-strategy.md)：只读提取、受控包、幂等、对账和签收规则。
 - [旧 PMS 核心数据只读提取](legacy-raw-extraction.md)：`.xlsb` 白名单、JSONL 原始包、安全边界和首批结果。
 - [客户与供应商主数据迁移](customer-supplier-master-data.md)：版本化映射、稳定代码、幂等导入和真实包隔离验证。
+- [旧采购订单迁移](legacy-purchase-orders.md)：版本化规范包、来源链、未知税务口径和 55 张差异订单对账。
 - [真实项目切片映射与复核](real-slice-review.md)：真实项目/BOM/投产/请购候选规则、隔离对账和待确认问题。
 - [SLICE-001 受控迁移](slice-001-controlled-migration.md)：首切片 JSON 契约、命令和报告口径。
 
