@@ -19,7 +19,7 @@ from pms.legacy_migration.purchase_order_preflight import (
 
 
 class Command(BaseCommand):
-    help = "只读预检 pms-legacy-purchase-orders-v1 的全部正式引用。"
+    help = "只读预检 pms-legacy-purchase-orders-v2 的全部正式引用。"
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--input", type=Path, required=True)

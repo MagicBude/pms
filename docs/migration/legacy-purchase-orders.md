@@ -12,7 +12,7 @@
 
 1. **原始提取**：复用 `pms-legacy-raw-v1` 的 `purchase_orders.jsonl` 和带 SHA-256 的清单。
 2. **规范映射**：严格校验字段类型，以订单号分组，解析 Decimal/日期并输出
-   `pms-legacy-purchase-orders-v1`；不写数据库。
+   `pms-legacy-purchase-orders-v2`；同时保留旧件号和目标稳定物料代码，不写数据库。
 3. **隔离导入**：解析主数据关系，建立迁移来源的报价、确定和已签发订单，全批事务提交。
 4. **自动对账**：比较来源/目标行数、订单数、供应商边界、类型、项目/请购跨度、旧合计和重算额。
 5. **业务签收**：在本地复核页确认 55 张差异订单及异常日期/备注后，才决定是否导入日常库。
@@ -54,7 +54,7 @@
 ```powershell
 uv run python manage.py map_legacy_purchase_orders `
   --raw .internal/migration/raw-20260824-core-v1 `
-  --output .internal/migration/purchase-orders-20260826-v1.json
+  --output .internal/migration/purchase-orders-20260826-v2.json
 ```
 
 输出文件包含真实供应商、价格和备注，只能留在 Git 忽略区。命令拒绝覆盖既有文件，普通输出只
@@ -70,7 +70,7 @@ uv run python manage.py map_legacy_purchase_orders `
 
 ```powershell
 uv run python manage.py preflight_legacy_purchase_orders `
-  --input .internal/migration/purchase-orders-20260826-v1.json `
+  --input .internal/migration/purchase-orders-20260826-v2.json `
   --report .internal/migration/purchase-order-preflight-local.json
 ```
 
@@ -78,6 +78,11 @@ uv run python manage.py preflight_legacy_purchase_orders `
 原请购行全部唯一匹配时，`ready_for_import` 才为 `true`；预检不会创建占位主数据。
 
 2026-08-26 在全新隔离 SQLite 中导入 9 个客户、115 个供应商和已签收 10 行真实切片后，首轮预检
-得到：供应商解析 1,127/1,625，项目 13/1,625，物料 0/1,625，单位 1,471/1,625，请购行
-0/1,625，歧义均为 0。该结果明确禁止正式订单导入，并把下一步收敛为扩展项目、物料和生产请购
-来源迁移，而不是伪造占位记录。
+暴露了旧件号与新稳定代码不可直接比较的问题。V2 改为复用生产需求迁移的七字段物料身份摘要，
+并在请购编号已重新生成时以“项目 + 稳定物料 + 数量”寻找唯一来源候选；再次预检得到：供应商
+解析 1,127/1,625，项目 13/1,625，物料 10/1,625，单位 1,471/1,625，请购行 10/1,625，
+歧义均为 0。
+
+对原始包的只读覆盖分析进一步确认：订单涉及 51 个项目，全部存在生产需求，其中 46 个能由销售
+订单关联客户，5 个仍缺客户证据；1,280 个订单物料全部存在生产需求；1,573 个“项目 + 旧请购号
++ 旧件号”键中 1,569 个能关联生产需求，4 个需单独复核。下一批将把这些来源映射为全量规范包。

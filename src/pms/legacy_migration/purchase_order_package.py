@@ -22,7 +22,7 @@ from pms.legacy_migration.raw_extraction import (
     RAW_SCHEMA_VERSION,
 )
 
-PURCHASE_ORDER_SCHEMA_VERSION = "pms-legacy-purchase-orders-v1"
+PURCHASE_ORDER_SCHEMA_VERSION = "pms-legacy-purchase-orders-v2"
 MAX_MANIFEST_BYTES = 1024 * 1024
 MAX_DATASET_BYTES = 8 * 1024 * 1024
 MAX_PACKAGE_BYTES = 8 * 1024 * 1024
@@ -41,6 +41,7 @@ class LegacyPurchaseOrderLine:
     project_code: str
     device_model: str
     material_code: str
+    target_material_code: str
     material_name: str
     quantity: str
     specification: str
@@ -257,12 +258,16 @@ def _map_line(
     supplier = _required(text(15), source_row, "承接方")
     order_number = _required(text(16), source_row, "订单编号")
     material_code = _required(text(2), source_row, "件号/编码")
+    material_identity = "\x1f".join(
+        _normalize_text(text(index)) for index in (2, 3, 5, 6, 7, 19, 18)
+    )
     recalculated = (quantity * unit_price).quantize(CENT, rounding=ROUND_HALF_UP)
     line = LegacyPurchaseOrderLine(
         source_row_number=source_row,
         project_code=_required(text(0), source_row, "项目编号"),
         device_model=text(1),
         material_code=material_code,
+        target_material_code=_stable_code("LEG-M", material_identity, 16),
         material_name=text(3),
         quantity=_decimal_text(quantity),
         specification=text(5),
@@ -425,6 +430,16 @@ def _decimal_text(value: Decimal) -> str:
 
 def _money_text(value: Decimal) -> str:
     return format(value.quantize(CENT, rounding=ROUND_HALF_UP), ".2f")
+
+
+def _stable_code(prefix: str, value: str, length: int) -> str:
+    """与生产需求迁移共享同一物料身份摘要规则，跨电脑生成相同目标代码。"""
+    digest = hashlib.sha256(_normalize_text(value).casefold().encode()).hexdigest()
+    return f"{prefix}-{digest[:length].upper()}"
+
+
+def _normalize_text(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", value).split())
 
 
 def _required(value: str, row: int, label: str) -> str:

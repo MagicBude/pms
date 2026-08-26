@@ -48,6 +48,7 @@ def test_groups_cross_project_rows_and_preserves_amount_difference(tmp_path: Pat
     assert order.recalculated_total == "10.67"
     assert order.difference == "2.99"
     assert {line.project_code for line in order.lines} == {"PRJ-A", "PRJ-B"}
+    assert all(line.target_material_code.startswith("LEG-M-") for line in order.lines)
 
 
 def test_rejects_multiple_suppliers_in_one_order_without_output(tmp_path: Path) -> None:

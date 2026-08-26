@@ -13,7 +13,7 @@ from pms.legacy_migration.purchase_order_package import (
 
 
 class Command(BaseCommand):
-    help = "验证旧采购订单并生成 pms-legacy-purchase-orders-v1；不写数据库。"
+    help = "验证旧采购订单并生成 pms-legacy-purchase-orders-v2；不写数据库。"
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--raw", type=Path, required=True, help="原始迁移包目录")

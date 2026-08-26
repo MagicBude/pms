@@ -50,7 +50,7 @@ def test_missing_supplier_and_request_are_reported_without_creating_placeholders
     package = _package(
         line=line,
         supplier_name="不存在的虚构供方",
-        request_number="不存在的请购号",
+        quantity="999",
     )
     username = Membership.objects.get(id=context.membership_id).user.username
     before_lines = PurchaseRequestLine.objects.count()
@@ -78,7 +78,7 @@ def test_report_shape_contains_only_stable_reference_names(tmp_path: Path) -> No
 
 
 def _package(
-    *, line: PurchaseRequestLine, supplier_name: str, request_number: str | None = None
+    *, line: PurchaseRequestLine, supplier_name: str, quantity: str | None = None
 ) -> LegacyPurchaseOrderPackage:
     request = line.purchase_request
     project = request.project
@@ -87,8 +87,9 @@ def _package(
         project_code=project.number,
         device_model=project.device_model,
         material_code=line.material.code,
+        target_material_code=line.material.code,
         material_name=line.material.name,
-        quantity="1",
+        quantity=quantity or str(line.requested_quantity),
         specification=line.material.specification,
         brand=line.material.brand,
         unit_name=line.unit.name,
@@ -96,7 +97,7 @@ def _package(
         project_start_date="2026-01-01",
         planned_completion_date="2026-01-31",
         receiving_department="测试部门",
-        request_number=request_number or request.request_number or "",
+        request_number=request.request_number or "",
         legacy_unit_price="10",
         legacy_saved_total="10",
         recalculated_total="10.00",

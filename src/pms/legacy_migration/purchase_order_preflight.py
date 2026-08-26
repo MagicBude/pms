@@ -8,6 +8,7 @@
 import json
 import unicodedata
 from dataclasses import asdict, dataclass
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
@@ -77,16 +78,16 @@ def preflight_legacy_purchase_orders(
         for line in order.lines:
             _record_match(checks["supplier"], line.source_row_number, supplier_matches)
             project_matches = project_keys.get(_normalize(line.project_code), ())
-            material_matches = material_keys.get(_normalize(line.material_code), ())
+            material_matches = material_keys.get(_normalize(line.target_material_code), ())
             unit_matches = unit_keys.get(_normalize(line.unit_name), ())
             _record_match(checks["project"], line.source_row_number, project_matches)
             _record_match(checks["material"], line.source_row_number, material_matches)
             _record_match(checks["unit"], line.source_row_number, unit_matches)
             request_matches = request_keys.get(
                 (
-                    _normalize(line.request_number),
                     _normalize(line.project_code),
-                    _normalize(line.material_code),
+                    _normalize(line.target_material_code),
+                    _decimal_key(line.quantity),
                 ),
                 (),
             )
@@ -172,13 +173,10 @@ def _request_line_keys(
 ) -> dict[tuple[str, str, str], tuple[UUID, ...]]:
     result: dict[tuple[str, str, str], list[UUID]] = {}
     for line in queryset:
-        request_number = line.purchase_request.request_number
-        if request_number is None:
-            continue
         key = (
-            _normalize(request_number),
             _normalize(line.purchase_request.project.number),
             _normalize(line.material.code),
+            _decimal_key(str(line.requested_quantity)),
         )
         result.setdefault(key, []).append(line.id)
     return {key: tuple(values) for key, values in result.items()}
@@ -208,3 +206,9 @@ def _result(
 
 def _normalize(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", value).split()).casefold()
+
+
+def _decimal_key(value: str) -> str:
+    """消除 Decimal 尾零差异，避免 ``1`` 与 ``1.000000`` 被误判为不同数量。"""
+    normalized = format(Decimal(value), "f")
+    return normalized.rstrip("0").rstrip(".") if "." in normalized else normalized
