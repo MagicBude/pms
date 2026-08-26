@@ -1,6 +1,6 @@
 # 旧采购订单迁移计划
 
-状态：设计与版本化规范映射已完成，隔离导入待实现
+状态：设计、规范映射与只读导入预检已完成，来源关系补齐和隔离导入待实现
 
 ## 目标
 
@@ -63,3 +63,21 @@ uv run python manage.py map_legacy_purchase_orders `
 2026-08-26 首次真实映射得到 1,625 条明细、536 张订单、55 张 Decimal 精确差异订单。独立口径
 复核还确认：若先按分舍入只剩 32 张，若错误使用浮点数直接比较则会误报 57 张。因此正式验收
 采用“Decimal 精确乘积判断异常、分币金额用于展示”的规则。
+
+## 隔离预检
+
+导入前必须在 local + SQLite 环境运行只读引用预检：
+
+```powershell
+uv run python manage.py preflight_legacy_purchase_orders `
+  --input .internal/migration/purchase-orders-20260826-v1.json `
+  --report .internal/migration/purchase-order-preflight-local.json
+```
+
+报告只包含来源行号和计数，不保存供应商、项目、物料或价格值。只有供应商、项目、物料、单位和
+原请购行全部唯一匹配时，`ready_for_import` 才为 `true`；预检不会创建占位主数据。
+
+2026-08-26 在全新隔离 SQLite 中导入 9 个客户、115 个供应商和已签收 10 行真实切片后，首轮预检
+得到：供应商解析 1,127/1,625，项目 13/1,625，物料 0/1,625，单位 1,471/1,625，请购行
+0/1,625，歧义均为 0。该结果明确禁止正式订单导入，并把下一步收敛为扩展项目、物料和生产请购
+来源迁移，而不是伪造占位记录。

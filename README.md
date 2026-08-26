@@ -53,6 +53,9 @@ uv run python manage.py map_legacy_purchase_orders --raw .internal/migration/raw
 该 JSON 包含真实供应商、价格和备注，必须留在 `.internal/` 等 Git 忽略路径。当前命令只做
 严格映射和差异计算，尚未授权把历史订单直接导入日常本机数据库。
 
+规范包导入前可运行 `preflight_legacy_purchase_orders` 只读检查供应商、项目、物料、单位和原请购
+行。只有报告中的 `ready_for_import` 为 `true` 才能进入导入；命令不会自动创建占位关系。
+
 已经生成客户/供应商规范包后，关闭 PMS 并双击 `PMS-导入旧主数据.bat`：脚本会迁移数据库、
 先创建完整备份，再幂等导入 9 个客户和 115 个供应商并生成无敏感值对账报告。成功后重新双击
 `PMS-启动.bat`，可在左侧“客户”和“供应商”页面查看。
