@@ -4,7 +4,9 @@ import uuid
 
 from django.db import models
 
-from pms.tenancy.infrastructure.django.models import Tenant
+from pms.attachments.infrastructure.django.models import Attachment
+from pms.master_data.domain.drawings import DrawingFormat
+from pms.tenancy.infrastructure.django.models import Membership, Tenant
 
 
 class TenantMasterData(models.Model):
@@ -121,4 +123,47 @@ class Material(TenantMasterData):
         ordering = ("code", "id")
         constraints = [
             models.UniqueConstraint(fields=("tenant", "code"), name="uq_material_tenant_code"),
+        ]
+
+
+class MaterialDrawing(models.Model):
+    """一个物料与格式下的不可变图纸版本；附件内容永不原地覆盖。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="material_drawings")
+    material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name="drawings")
+    attachment = models.OneToOneField(
+        Attachment, on_delete=models.PROTECT, related_name="material_drawing"
+    )
+    document_format = models.CharField(
+        max_length=8, choices=[(item.value, item.value) for item in DrawingFormat]
+    )
+    version = models.PositiveIntegerField()
+    is_current = models.BooleanField(default=True)
+    revision_label = models.CharField(max_length=64, blank=True)
+    note = models.CharField(max_length=500, blank=True)
+    material_code_snapshot = models.CharField(max_length=64)
+    material_name_snapshot = models.CharField(max_length=200)
+    created_by_membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="created_material_drawings"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    superseded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "master_data_material_drawing"
+        ordering = ("material_id", "document_format", "-version")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("material", "document_format", "version"),
+                name="uq_drawing_material_format_version",
+            ),
+            models.UniqueConstraint(
+                fields=("material", "document_format"),
+                condition=models.Q(is_current=True),
+                name="uq_drawing_material_format_current",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(version__gt=0), name="ck_drawing_version_positive"
+            ),
         ]

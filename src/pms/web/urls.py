@@ -13,6 +13,21 @@ urlpatterns = [
     path("suppliers/", views.supplier_list_view, name="web-supplier-list"),
     path("suppliers/new/", views.supplier_create_view, name="web-supplier-create"),
     path("materials/", views.material_list_view, name="web-material-list"),
+    path(
+        "materials/<uuid:material_id>/drawings/",
+        views.material_drawing_view,
+        name="web-material-drawings",
+    ),
+    path(
+        "materials/<uuid:material_id>/drawings/new/",
+        views.material_drawing_upload_view,
+        name="web-material-drawing-upload",
+    ),
+    path(
+        "material-drawings/<uuid:attachment_id>/download/",
+        views.material_drawing_download_view,
+        name="web-material-drawing-download",
+    ),
     path("units/new/", views.unit_create_view, name="web-unit-create"),
     path("categories/new/", views.category_create_view, name="web-category-create"),
     path("materials/new/", views.material_create_view, name="web-material-create"),

@@ -21,7 +21,9 @@ from pms.bom.infrastructure.django.repository import (
     DjangoBomTransactionManager,
 )
 from pms.bom.infrastructure.spreadsheet import OpenPyxlBomSpreadsheetParser
+from pms.master_data.application.drawings import DrawingService
 from pms.master_data.application.service import MasterDataService
+from pms.master_data.infrastructure.django.drawing_repository import DjangoDrawingRepository
 from pms.master_data.infrastructure.django.repository import (
     DjangoMasterDataRepository,
     DjangoTransactionManager,
@@ -73,6 +75,17 @@ def attachment_service() -> AttachmentService:
 def master_data_service() -> MasterDataService:
     return MasterDataService(
         repository=DjangoMasterDataRepository(),
+        grants=DjangoPermissionGrantLookup(),
+        audit=DjangoAuditRecorder(),
+        transactions=DjangoTransactionManager(),
+    )
+
+
+def drawing_service() -> DrawingService:
+    """建立物料图纸版本服务并复用主数据事务和附件存储。"""
+    return DrawingService(
+        repository=DjangoDrawingRepository(),
+        attachments=attachment_service(),
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),
         transactions=DjangoTransactionManager(),

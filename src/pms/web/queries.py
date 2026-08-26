@@ -24,6 +24,7 @@ from pms.master_data.infrastructure.django.models import (
     Customer,
     Material,
     MaterialCategory,
+    MaterialDrawing,
     Supplier,
     Unit,
 )
@@ -106,6 +107,27 @@ class MaterialItem:
     category: str
     procurement_required: bool
     is_active: bool
+
+
+@dataclass(frozen=True, slots=True)
+class DrawingItem:
+    attachment_id: UUID
+    document_format: str
+    version: int
+    is_current: bool
+    revision_label: str
+    note: str
+    filename: str
+    size_bytes: int
+    sha256_hex: str
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class MaterialDrawingDetail:
+    material: MaterialItem
+    drawings: tuple[DrawingItem, ...]
+    can_manage: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -390,6 +412,66 @@ def materials(context: TenantContext) -> tuple[MaterialItem, ...]:
         )
         for row in rows.order_by("code", "id")
     )
+
+
+def can_view_drawings(context: TenantContext) -> bool:
+    """控制物料列表是否展示图纸入口；下载仍单独授权。"""
+    return _has_scope(context, PermissionCode.DRAWING_VIEW)
+
+
+def material_drawings(context: TenantContext, material_id: UUID) -> MaterialDrawingDetail | None:
+    """读取一个物料的当前与历史图纸，不通过文件名推断关联。"""
+    _scope(context, PermissionCode.DRAWING_VIEW)
+    material = (
+        Material.objects.filter(id=material_id, tenant_id=context.tenant_id)
+        .select_related("unit", "category")
+        .first()
+    )
+    if material is None:
+        return None
+    item = MaterialItem(
+        id=material.id,
+        code=material.code,
+        name=material.name,
+        specification=material.specification,
+        part_attribute=material.part_attribute,
+        unit=material.unit.name,
+        category=material.category.name,
+        procurement_required=material.procurement_required,
+        is_active=material.is_active,
+    )
+    return MaterialDrawingDetail(
+        material=item,
+        drawings=tuple(
+            DrawingItem(
+                attachment_id=row.attachment_id,
+                document_format=row.document_format,
+                version=row.version,
+                is_current=row.is_current,
+                revision_label=row.revision_label,
+                note=row.note,
+                filename=row.attachment.original_filename,
+                size_bytes=row.attachment.size_bytes or 0,
+                sha256_hex=row.attachment.sha256_hex or "",
+                created_at=row.created_at,
+            )
+            for row in MaterialDrawing.objects.filter(
+                tenant_id=context.tenant_id, material=material
+            ).select_related("attachment")
+        ),
+        can_manage=_has_scope(context, PermissionCode.DRAWING_MANAGE),
+    )
+
+
+def attachment_for_drawing(context: TenantContext, attachment_id: UUID) -> Attachment | None:
+    """图纸下载必须同时满足租户、图纸权限和 AVAILABLE 状态。"""
+    _scope(context, PermissionCode.DRAWING_VIEW)
+    drawing = (
+        MaterialDrawing.objects.filter(tenant_id=context.tenant_id, attachment_id=attachment_id)
+        .select_related("attachment")
+        .first()
+    )
+    return drawing.attachment if drawing and drawing.attachment.status == "available" else None
 
 
 def master_options(context: TenantContext) -> dict[str, tuple[Option, ...]]:

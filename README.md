@@ -52,6 +52,9 @@ uv sync --locked --all-groups
 不同币种分别汇总，重选会保留历史版本。该能力是采购侧价格核算，整机成本与客户报价仍在后续
 `SAL-001` 批次。
 
+有图纸权限的用户可在“物料与基础资料 → 版本与文件”上传 PDF/DWG。系统按物料和格式保留 V1、
+V2 历史，显示 SHA-256 并拒绝后缀伪装；上传新版不会覆盖旧附件。订单图纸 ZIP 将在下一节点接入。
+
 已有本机数据在拉取本批代码后，先停止 PMS，在仓库终端执行 `uv sync --locked --all-groups`、
 `uv run python manage.py migrate --noinput` 和 `uv run python manage.py initialize_pms`。最后一条对既有
 管理员不要求重新输入密码，只会幂等补齐新增报价权限；完成后再双击 `PMS-启动.bat`。

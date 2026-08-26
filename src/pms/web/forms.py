@@ -96,6 +96,23 @@ class MaterialForm(StyledForm):
         self.apply_styles()
 
 
+class DrawingUploadForm(StyledForm):
+    """图纸上传边界；内容签名和业务版本由应用服务验证。"""
+
+    file = forms.FileField(label="PDF 或 DWG 图纸")
+    revision_label = forms.CharField(label="设计修订号", max_length=64, required=False)
+    note = forms.CharField(
+        label="版本说明",
+        max_length=500,
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.apply_styles()
+
+
 class ProjectForm(StyledForm):
     number = forms.CharField(label="项目编号", max_length=64)
     customer_id = forms.ChoiceField(label="客户")

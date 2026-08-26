@@ -16,6 +16,7 @@ from django.contrib.auth import login as django_login
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.files.uploadedfile import UploadedFile
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -26,6 +27,7 @@ from pms.authorization.application.authorize import PermissionDeniedError, autho
 from pms.authorization.domain.permissions import PermissionCode
 from pms.authorization.infrastructure.django.grant_lookup import DjangoPermissionGrantLookup
 from pms.bom.application.service import ImportBomCommand
+from pms.master_data.application.drawings import UploadDrawingCommand
 from pms.master_data.application.service import (
     CreateCustomerCommand,
     CreateMaterialCommand,
@@ -34,6 +36,7 @@ from pms.master_data.application.service import (
 from pms.platform.business_services import (
     attachment_service,
     bom_service,
+    drawing_service,
     master_data_service,
     order_document_service,
     pricing_service,
@@ -56,6 +59,7 @@ from pms.web.forms import (
     CancelForm,
     CodeNameForm,
     CustomerForm,
+    DrawingUploadForm,
     LoginForm,
     MaterialAssignmentForm,
     MaterialForm,
@@ -205,11 +209,77 @@ def supplier_create_view(request: HttpRequest) -> HttpResponse:
 @require_GET
 @login_required
 def material_list_view(request: HttpRequest) -> HttpResponse:
+    context = _context(request)
     return render(
         request,
         "web/material_list.html",
-        {"materials": queries.materials(_context(request))},
+        {
+            "materials": queries.materials(context),
+            "can_view_drawings": queries.can_view_drawings(context),
+        },
     )
+
+
+@require_GET
+@login_required
+def material_drawing_view(request: HttpRequest, material_id: UUID) -> HttpResponse:
+    detail = queries.material_drawings(_context(request), material_id)
+    if detail is None:
+        raise Http404
+    return render(
+        request,
+        "web/material_drawings.html",
+        {"detail": detail, "form": DrawingUploadForm()},
+    )
+
+
+@require_POST
+@login_required
+def material_drawing_upload_view(request: HttpRequest, material_id: UUID) -> HttpResponse:
+    form = DrawingUploadForm(request.POST, request.FILES)
+    if form.is_valid():
+        uploaded = cast(UploadedFile, form.cleaned_data["file"])
+        try:
+            if uploaded.size is None or uploaded.size > 25 * 1024 * 1024:
+                raise ValueError("单个图纸不能超过 25 MiB。")
+            if not uploaded.name:
+                raise ValueError("图纸文件名不能为空。")
+            drawing_service().upload(
+                context=_context(request),
+                command=UploadDrawingCommand(
+                    material_id=material_id,
+                    filename=uploaded.name,
+                    content=uploaded.read(),
+                    revision_label=str(form.cleaned_data["revision_label"]),
+                    note=str(form.cleaned_data["note"]),
+                ),
+            )
+        except EXPECTED_USER_ERRORS as error:
+            messages.error(request, str(error))
+        else:
+            messages.success(request, "图纸新版本已保存，旧版本仍可追溯。")
+    else:
+        messages.error(request, "请选择 PDF 或 DWG 图纸。")
+    return redirect("web-material-drawings", material_id=material_id)
+
+
+@require_GET
+@login_required
+def material_drawing_download_view(request: HttpRequest, attachment_id: UUID) -> FileResponse:
+    context = _context(request)
+    attachment = queries.attachment_for_drawing(context, attachment_id)
+    if attachment is None:
+        raise Http404
+    stream = attachment_service().open_available(
+        context=context, attachment_id=AttachmentId(attachment_id)
+    )
+    record_protected_read(
+        context=context,
+        action="material_drawing.downloaded",
+        object_type="attachment",
+        object_id=attachment_id,
+    )
+    return FileResponse(stream, as_attachment=True, filename=attachment.original_filename)
 
 
 def _simple_master_create(request: HttpRequest, *, kind: str, title: str) -> HttpResponse:
