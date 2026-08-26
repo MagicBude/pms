@@ -86,6 +86,7 @@ manifest 会列出所选图纸版本、大小、SHA-256 和缺失物料，历史
 
 - [项目状态](PROJECT_STATUS.md)：当前阶段、完成项、下一步和阻塞，是唯一当前状态页。
 - [项目路线图](docs/development/roadmap.md)：分阶段计划与退出条件。
+- [正式切换清单](docs/development/go-live-checklist.md)：各模块离停止使用旧 PMS 还差哪些门槛。
 - [工作日志](docs/development/work-log.md)：按时间追加的执行事实和验证结果。
 - [变更记录](CHANGELOG.md)：仓库对使用者产生的可见变化。
 - [旧系统迁移追踪](docs/migration/legacy-to-new-traceability.md)：旧能力到新功能、规则和验收的映射。

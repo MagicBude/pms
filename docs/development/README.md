@@ -7,6 +7,7 @@
 ## 当前协作入口
 
 - [项目路线图](roadmap.md)：阶段计划和退出条件。
+- [正式切换清单](go-live-checklist.md)：新业务试用、单模块切换和旧 PMS 整体停用的门槛与进度。
 - [工作日志](work-log.md)：追加式执行事实与验证。
 - [AI 与跨电脑交接说明](handoff.md)：开始、执行和结束任务的固定动作。
 - [工程骨架与质量工具实施计划](engineering-foundation-plan.md)：Phase 1 的实施顺序、提交边界和验收门槛。
