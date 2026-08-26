@@ -61,3 +61,6 @@
 
 达到这些条件时，更新本文件、[项目状态](../../PROJECT_STATUS.md)、[路线图](roadmap.md)和
 [变更记录](../../CHANGELOG.md)，记录正式切换时间点与回退基线。
+
+最终数据交付统一遵守 [ADR-0010](../architecture/adr/ADR-0010-consolidated-legacy-import-bundle.md)：
+默认一个总迁移 ZIP 和一个双击 BAT，不要求使用者逐个运行内部模块命令。

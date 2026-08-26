@@ -15,6 +15,7 @@ ADR 记录不可轻易逆转或影响多个模块的技术决定。状态为“�
 | [ADR-0007](ADR-0007-purchase-orders-and-versioned-documents.md) | 已接受 | 正式订单、稳定编号和版本化单据 |
 | [ADR-0008](ADR-0008-material-drawings-and-order-packages.md) | 已接受 | 物料图纸版本、内容校验和订单图纸包 |
 | [ADR-0009](ADR-0009-legacy-purchase-order-import.md) | 已接受 | 旧采购订单导入、未知税务口径和金额差异 |
+| [ADR-0010](ADR-0010-consolidated-legacy-import-bundle.md) | 已接受 | 旧 PMS 单一总迁移包、隔离演练和双击导入 |
 
 ## 状态规则
 
