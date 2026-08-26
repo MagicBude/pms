@@ -32,6 +32,7 @@ from pms.procurement.domain.pricing import calculate_price_amounts
 from pms.procurement.infrastructure.django.models import (
     PurchaseOrder,
     PurchaseOrderDocument,
+    PurchaseOrderDrawingPackage,
     PurchaseRequest,
     PurchaseRequestLine,
     SupplierDecision,
@@ -331,14 +332,26 @@ class OrderDocumentItem:
 
 
 @dataclass(frozen=True, slots=True)
+class DrawingPackageItem:
+    attachment_id: UUID
+    version: int
+    included_file_count: int
+    missing_material_count: int
+    filename: str
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class OrderDetail:
     order: OrderItem
     cancellation_reason: str
     lines: tuple[OrderLineItem, ...]
     documents: tuple[OrderDocumentItem, ...]
+    drawing_packages: tuple[DrawingPackageItem, ...]
     net_amount: Decimal
     tax_amount: Decimal
     can_manage: bool
+    can_generate_drawing_package: bool
 
 
 def dashboard(context: TenantContext) -> DashboardData:
@@ -808,9 +821,21 @@ def purchase_order_detail(context: TenantContext, order_id: UUID) -> OrderDetail
             )
             for row in order.documents.select_related("attachment")
         ),
+        drawing_packages=tuple(
+            DrawingPackageItem(
+                attachment_id=row.attachment_id,
+                version=row.version,
+                included_file_count=row.included_file_count,
+                missing_material_count=row.missing_material_count,
+                filename=row.attachment.original_filename,
+                created_at=row.created_at,
+            )
+            for row in order.drawing_packages.select_related("attachment")
+        ),
         net_amount=sum((line.net_amount for line in lines), Decimal("0.00")),
         tax_amount=sum((line.tax_amount for line in lines), Decimal("0.00")),
         can_manage=_has_scope(context, PermissionCode.PURCHASE_ORDER_MANAGE),
+        can_generate_drawing_package=_has_scope(context, PermissionCode.DRAWING_PACKAGE_GENERATE),
     )
 
 
@@ -826,6 +851,22 @@ def attachment_for_order(context: TenantContext, attachment_id: UUID) -> Attachm
         )
     document = documents.select_related("attachment").distinct().first()
     return document.attachment if document and document.attachment.status == "available" else None
+
+
+def attachment_for_drawing_package(
+    context: TenantContext, attachment_id: UUID
+) -> Attachment | None:
+    """图纸包下载沿用订单可见范围，不能凭附件 UUID 绕过。"""
+    scope = _scope(context, PermissionCode.PURCHASE_ORDER_VIEW)
+    packages = PurchaseOrderDrawingPackage.objects.filter(
+        tenant_id=context.tenant_id, attachment_id=attachment_id
+    )
+    if scope is PermissionScope.RELATED:
+        packages = packages.filter(
+            order__lines__request_line__purchase_request__project__owner_membership_id=context.membership_id
+        )
+    package = packages.select_related("attachment").distinct().first()
+    return package.attachment if package and package.attachment.status == "available" else None
 
 
 def attachment_for_bom(context: TenantContext, attachment_id: UUID) -> Attachment | None:

@@ -53,7 +53,8 @@ uv sync --locked --all-groups
 `SAL-001` 批次。
 
 有图纸权限的用户可在“物料与基础资料 → 版本与文件”上传 PDF/DWG。系统按物料和格式保留 V1、
-V2 历史，显示 SHA-256 并拒绝后缀伪装；上传新版不会覆盖旧附件。订单图纸 ZIP 将在下一节点接入。
+V2 历史，显示 SHA-256 并拒绝后缀伪装；上传新版不会覆盖旧附件。已签发订单可生成图纸 ZIP，
+manifest 会列出所选图纸版本、大小、SHA-256 和缺失物料，历史包不会随图纸升级改变。
 
 已有本机数据在拉取本批代码后，先停止 PMS，在仓库终端执行 `uv sync --locked --all-groups`、
 `uv run python manage.py migrate --noinput` 和 `uv run python manage.py initialize_pms`。最后一条对既有

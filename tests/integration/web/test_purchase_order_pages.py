@@ -7,7 +7,12 @@ import pytest
 from django.conf import settings
 from django.test import Client
 
-from pms.procurement.infrastructure.django.models import PurchaseOrderDocument
+from pms.master_data.application.drawings import UploadDrawingCommand
+from pms.platform.business_services import drawing_service
+from pms.procurement.infrastructure.django.models import (
+    PurchaseOrderDocument,
+    PurchaseOrderDrawingPackage,
+)
 from pms.tenancy.infrastructure.django.models import Membership
 from pms.web.context import SESSION_MEMBERSHIP_KEY
 from tests.integration.business.test_procurement_pricing import (
@@ -57,3 +62,19 @@ def test_order_page_issues_generates_and_downloads_versioned_excel(
     download = client.get(f"/order-documents/{document.attachment_id}/download/")
     assert download.status_code == 200
     assert download["Content-Disposition"].endswith('.xlsx"')
+
+    drawing_service().upload(
+        context=context,
+        command=UploadDrawingCommand(
+            material_id=line.material_id,
+            filename="虚构订单页面图纸.pdf",
+            content=b"%PDF-1.4\nweb-package",
+        ),
+    )
+    response = client.post(f"/orders/{order.id}/drawing-packages/new/", follow=True)
+    assert response.status_code == 200
+    assert "图纸包 V1" in response.content.decode()
+    package = PurchaseOrderDrawingPackage.objects.get(order_id=order.id)
+    package_download = client.get(f"/drawing-packages/{package.attachment_id}/download/")
+    assert package_download.status_code == 200
+    assert ".zip" in package_download["Content-Disposition"]

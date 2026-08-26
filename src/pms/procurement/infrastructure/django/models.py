@@ -5,7 +5,7 @@ import uuid
 from django.db import models
 
 from pms.attachments.infrastructure.django.models import Attachment
-from pms.master_data.infrastructure.django.models import Material, Supplier, Unit
+from pms.master_data.infrastructure.django.models import Material, MaterialDrawing, Supplier, Unit
 from pms.procurement.domain.orders import PurchaseOrderKind, PurchaseOrderStatus
 from pms.procurement.domain.pricing import Currency, QuoteSource, QuoteStatus
 from pms.procurement.domain.request import PurchaseRequestStatus
@@ -392,4 +392,90 @@ class PurchaseOrderDocument(models.Model):
             models.CheckConstraint(
                 condition=models.Q(version__gt=0), name="ck_order_document_version_positive"
             ),
+        ]
+
+
+class PurchaseOrderDrawingPackage(models.Model):
+    """一次订单图纸 ZIP 生成结果及冻结清单的聚合根。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="drawing_packages")
+    order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.PROTECT, related_name="drawing_packages"
+    )
+    attachment = models.OneToOneField(
+        Attachment, on_delete=models.PROTECT, related_name="purchase_order_drawing_package"
+    )
+    version = models.PositiveIntegerField()
+    included_file_count = models.PositiveIntegerField()
+    missing_material_count = models.PositiveIntegerField()
+    created_by_membership = models.ForeignKey(
+        Membership, on_delete=models.PROTECT, related_name="created_drawing_packages"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "procurement_purchase_order_drawing_package"
+        ordering = ("-version",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("order", "version"), name="uq_order_drawing_package_version"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(version__gt=0), name="ck_drawing_package_version_positive"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(included_file_count__gt=0),
+                name="ck_drawing_package_included_positive",
+            ),
+        ]
+
+
+class PurchaseOrderDrawingPackageItem(models.Model):
+    """图纸包生成时冻结的具体图纸版本、路径和完整性元数据。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    package = models.ForeignKey(
+        PurchaseOrderDrawingPackage, on_delete=models.PROTECT, related_name="items"
+    )
+    drawing = models.ForeignKey(
+        MaterialDrawing, on_delete=models.PROTECT, related_name="package_items"
+    )
+    material_code_snapshot = models.CharField(max_length=64)
+    material_name_snapshot = models.CharField(max_length=200)
+    document_format = models.CharField(max_length=8)
+    drawing_version = models.PositiveIntegerField()
+    revision_label = models.CharField(max_length=64, blank=True)
+    archive_path = models.CharField(max_length=500)
+    size_bytes = models.PositiveBigIntegerField()
+    sha256_hex = models.CharField(max_length=64)
+
+    class Meta:
+        db_table = "procurement_purchase_order_drawing_package_item"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("package", "drawing"), name="uq_drawing_package_item_drawing"
+            )
+        ]
+
+
+class PurchaseOrderDrawingPackageMissing(models.Model):
+    """生成时没有任何当前图纸的订单物料，避免部分包被误认为完整。"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    package = models.ForeignKey(
+        PurchaseOrderDrawingPackage, on_delete=models.PROTECT, related_name="missing_materials"
+    )
+    material = models.ForeignKey(
+        Material, on_delete=models.PROTECT, related_name="missing_packages"
+    )
+    material_code_snapshot = models.CharField(max_length=64)
+    material_name_snapshot = models.CharField(max_length=200)
+
+    class Meta:
+        db_table = "procurement_purchase_order_drawing_package_missing"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("package", "material"), name="uq_drawing_package_missing_material"
+            )
         ]

@@ -29,10 +29,14 @@ from pms.master_data.infrastructure.django.repository import (
     DjangoTransactionManager,
 )
 from pms.procurement.application.documents import OrderDocumentService
+from pms.procurement.application.drawing_packages import DrawingPackageService
 from pms.procurement.application.orders import PurchaseOrderService
 from pms.procurement.application.pricing import PricingService
 from pms.procurement.application.service import ProcurementService
 from pms.procurement.infrastructure.django.document_repository import DjangoOrderDocumentRepository
+from pms.procurement.infrastructure.django.drawing_package_repository import (
+    DjangoDrawingPackageRepository,
+)
 from pms.procurement.infrastructure.django.order_repository import (
     DjangoPurchaseOrderRepository,
     DjangoPurchaseOrderTransactionManager,
@@ -46,6 +50,7 @@ from pms.procurement.infrastructure.django.repository import (
     DjangoProcurementRepository,
     DjangoProcurementTransactionManager,
 )
+from pms.procurement.infrastructure.drawing_package import render_drawing_package
 from pms.procurement.infrastructure.spreadsheet import render_order_xlsx
 from pms.production.application.service import ProductionService
 from pms.production.infrastructure.django.repository import (
@@ -158,6 +163,18 @@ def order_document_service() -> OrderDocumentService:
     return OrderDocumentService(
         repository=DjangoOrderDocumentRepository(),
         renderer=render_order_xlsx,
+        attachments=attachment_service(),
+        grants=DjangoPermissionGrantLookup(),
+        audit=DjangoAuditRecorder(),
+        transactions=DjangoPurchaseOrderTransactionManager(),
+    )
+
+
+def drawing_package_service() -> DrawingPackageService:
+    """建立订单图纸包服务并复用附件存储与订单事务。"""
+    return DrawingPackageService(
+        repository=DjangoDrawingPackageRepository(),
+        renderer=render_drawing_package,
         attachments=attachment_service(),
         grants=DjangoPermissionGrantLookup(),
         audit=DjangoAuditRecorder(),

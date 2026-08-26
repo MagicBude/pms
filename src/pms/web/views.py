@@ -36,6 +36,7 @@ from pms.master_data.application.service import (
 from pms.platform.business_services import (
     attachment_service,
     bom_service,
+    drawing_package_service,
     drawing_service,
     master_data_service,
     order_document_service,
@@ -971,6 +972,45 @@ def purchase_order_document_generate_view(request: HttpRequest, order_id: UUID) 
     else:
         messages.success(request, f"订单 Excel V{document.version} 已生成。")
     return redirect("web-purchase-order-detail", order_id=order_id)
+
+
+@require_POST
+@login_required
+def purchase_order_drawing_package_generate_view(
+    request: HttpRequest, order_id: UUID
+) -> HttpResponse:
+    try:
+        package = drawing_package_service().generate(context=_context(request), order_id=order_id)
+    except EXPECTED_USER_ERRORS as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"图纸包 V{package.version} 已生成：包含 {package.included_file_count} 个文件，"
+            f"缺失 {package.missing_material_count} 个物料。",
+        )
+    return redirect("web-purchase-order-detail", order_id=order_id)
+
+
+@require_GET
+@login_required
+def purchase_order_drawing_package_download_view(
+    request: HttpRequest, attachment_id: UUID
+) -> FileResponse:
+    context = _context(request)
+    attachment = queries.attachment_for_drawing_package(context, attachment_id)
+    if attachment is None:
+        raise Http404
+    stream = attachment_service().open_available(
+        context=context, attachment_id=AttachmentId(attachment_id)
+    )
+    record_protected_read(
+        context=context,
+        action="purchase_order.drawing_package_downloaded",
+        object_type="attachment",
+        object_id=attachment_id,
+    )
+    return FileResponse(stream, as_attachment=True, filename=attachment.original_filename)
 
 
 @require_GET

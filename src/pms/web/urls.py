@@ -131,6 +131,16 @@ urlpatterns = [
         name="web-purchase-order-document-generate",
     ),
     path(
+        "orders/<uuid:order_id>/drawing-packages/new/",
+        views.purchase_order_drawing_package_generate_view,
+        name="web-purchase-order-drawing-package-generate",
+    ),
+    path(
+        "drawing-packages/<uuid:attachment_id>/download/",
+        views.purchase_order_drawing_package_download_view,
+        name="web-purchase-order-drawing-package-download",
+    ),
+    path(
         "order-documents/<uuid:attachment_id>/download/",
         views.purchase_order_document_download_view,
         name="web-purchase-order-document-download",
