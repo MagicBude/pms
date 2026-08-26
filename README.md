@@ -44,6 +44,15 @@ uv sync --locked --all-groups
 `.xlsb` 数据库只读提取到 Git 忽略的 `.internal/migration/`。原始包含真实敏感数据，只供后续
 映射、导入和对账；换电脑保存新 PMS 的完整数据仍应使用正式备份与恢复。
 
+旧采购订单可先映射成不写数据库的版本化规范包：
+
+```powershell
+uv run python manage.py map_legacy_purchase_orders --raw .internal/migration/raw-20260824-core-v1 --output .internal/migration/purchase-orders-local.json
+```
+
+该 JSON 包含真实供应商、价格和备注，必须留在 `.internal/` 等 Git 忽略路径。当前命令只做
+严格映射和差异计算，尚未授权把历史订单直接导入日常本机数据库。
+
 已经生成客户/供应商规范包后，关闭 PMS 并双击 `PMS-导入旧主数据.bat`：脚本会迁移数据库、
 先创建完整备份，再幂等导入 9 个客户和 115 个供应商并生成无敏感值对账报告。成功后重新双击
 `PMS-启动.bat`，可在左侧“客户”和“供应商”页面查看。
